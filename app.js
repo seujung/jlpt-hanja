@@ -171,7 +171,9 @@
   /* ---------- STUDY (flashcards) ---------- */
   function renderStudy(day) {
     const d = DATA.find(x => x.day === day);
-    let order = d.cards.map((_, i) => i), idx = 0, shuffled = false, flipped = false;
+    // 이전 학습 기록이 있으면 마지막 본 카드에서 이어서 시작
+    const resumeIdx = Math.min(Math.max((studyProg[day] || 1) - 1, 0), d.cards.length - 1);
+    let order = d.cards.map((_, i) => i), idx = resumeIdx, shuffled = false, flipped = false;
 
     app.innerHTML = "";
     const top = el("div", "study-top");

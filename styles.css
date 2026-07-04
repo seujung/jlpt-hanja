@@ -45,7 +45,7 @@ h1{font-size:22px;margin:4px 0 2px}
 .daycard .bar>i{display:block;height:100%;background:linear-gradient(90deg,var(--acc),var(--acc2))}
 .daycard .btns{display:flex;gap:8px;margin-top:2px}
 .btn{border:none;border-radius:10px;padding:9px 12px;font-weight:600;cursor:pointer;
-  font-size:14px;font-family:inherit;transition:.12s}
+  font-size:14px;font-family:inherit;transition:.12s;white-space:nowrap}
 .btn.pri{background:var(--acc);color:#0b0e1c;flex:1}
 .btn.sec{background:var(--panel2);color:var(--txt);border:1px solid var(--line);flex:1}
 .btn:hover{filter:brightness(1.08)}
@@ -121,6 +121,8 @@ h1{font-size:22px;margin:4px 0 2px}
 .opt.wrong{background:rgba(255,93,108,.16);border-color:var(--bad)}
 .opt:disabled{cursor:default}
 .qfoot{margin-top:20px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+.qfoot .btn{min-width:150px;padding:11px 18px;font-size:15px}
+.result .btn{min-width:130px;padding:11px 18px}
 .result{text-align:center;padding:20px}
 .result .score{font-size:60px;font-weight:700;color:var(--gold)}
 .result .pct{color:var(--mut);margin-bottom:20px}
