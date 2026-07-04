@@ -88,6 +88,17 @@ h1{font-size:22px;margin:4px 0 2px}
 .yomi-tag{font-size:11px;font-weight:700;padding:2px 7px;border-radius:6px}
 .yomi-tag.kun{background:rgba(0,211,167,.18);color:var(--acc2)}
 .yomi-tag.on{background:rgba(108,140,255,.2);color:var(--acc)}
+.lvl-badge{font-size:12px;font-weight:700;padding:2px 8px;border-radius:6px;margin-left:10px;color:#0b0e1c}
+.lvl-badge.sm{font-size:10px;padding:1px 6px;margin-left:0;margin-right:8px}
+.lvl-badge.N5{background:#7ee0b8}.lvl-badge.N4{background:#7ec8ff}
+.lvl-badge.N3{background:#ffd36b}.lvl-badge.N2{background:#ffa96b}.lvl-badge.N1{background:#ff8b9a}
+.rel-title{margin:16px 0 6px;color:var(--gold);font-weight:700;font-size:13px;
+  border-top:1px solid var(--line);padding-top:12px}
+.rel-row{background:#0c1120;border:1px solid var(--line);border-radius:10px;padding:8px 12px;
+  display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.rel-row .rel-w{font-size:17px;font-weight:700}
+.rel-row .fu{color:var(--mut);font-size:12px}
+.rel-row .mn{color:var(--txt);font-size:13px;margin-top:2px}
 .reading-row{background:#0e1226;border:1px solid var(--line);border-radius:12px;padding:12px 14px;
   display:flex;align-items:center;gap:12px}
 .reading-row .rd{color:var(--gold);font-weight:700;font-size:16px;min-width:70px}

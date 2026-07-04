@@ -227,7 +227,8 @@
 
       const backF = el("div", "face back");
       const h = el("div"); h.style.display = "flex"; h.style.alignItems = "center"; h.style.flexWrap = "wrap";
-      h.innerHTML = `<span class="bchar jp">${esc(c.char)}</span><span class="bgloss">${esc(c.gloss)}</span>`;
+      h.innerHTML = `<span class="bchar jp">${esc(c.char)}</span><span class="bgloss">${esc(c.gloss)}</span>` +
+        (c.jlpt ? `<span class="lvl-badge ${c.jlpt}">${c.jlpt}</span>` : "");
       backF.appendChild(h);
       // 음독/훈독 요약
       const summary = el("div", "yomi-summary");
@@ -252,6 +253,24 @@
         row.append(txt, sp);
         backF.appendChild(row);
       });
+      // 관련 기출 단어 (JLPT)
+      if (c.related && c.related.length) {
+        backF.appendChild(el("div", "rel-title", "관련 기출 단어 (JLPT)"));
+        c.related.forEach(rw => {
+          const row = el("div", "rel-row");
+          const txt = el("div", "txtcol");
+          const top = el("div", "jp");
+          top.innerHTML = `<span class="lvl-badge sm ${rw.l}">${rw.l}</span>` +
+            `<span class="rel-w jp">${esc(rw.w)}</span> <span class="fu">${esc(rw.r)}</span>`;
+          txt.appendChild(top);
+          if (rw.m) txt.appendChild(el("div", "mn", esc(rw.m)));
+          const sp = el("button", "spk", "🔊");
+          sp.title = "발음 듣기";
+          sp.onclick = ev => { ev.stopPropagation(); speak(rw.r || rw.w); };
+          row.append(txt, sp);
+          backF.appendChild(row);
+        });
+      }
       inner.innerHTML = "";
       inner.append(front, backF);
     }
@@ -278,7 +297,15 @@
     const d = DATA.find(x => x.day === day);
     const cards = d.cards;
     const wordItems = [];
-    cards.forEach(c => c.readings.forEach(r => { if (r.word && (r.furigana || r.reading)) wordItems.push({ ...r, char: c.char, gloss: c.gloss }); }));
+    const seenW = new Set();
+    const addWord = (word, reading, meaning) => {
+      if (!word || !reading || seenW.has(word)) return;
+      seenW.add(word);
+      wordItems.push({ word, furigana: reading, reading, meaning });
+    };
+    cards.forEach(c => c.readings.forEach(r => { if (r.word && (r.furigana || r.reading)) addWord(r.word, r.furigana || r.reading, r.meaning); }));
+    // 관련 기출 단어(JLPT)도 퀴즈 대상에 포함
+    cards.forEach(c => (c.related || []).forEach(rw => addWord(rw.w, rw.r, rw.m)));
     const qs = [];
     // meaning questions from cards
     const cardPool = shuffle(cards);
@@ -345,9 +372,6 @@
       const big = el("span", "big jp" + (q.promptJpSmall ? "" : ""), esc(q.promptBig));
       if (q.promptJpSmall) big.style.fontSize = "40px";
       prompt.appendChild(big);
-      if (q.speak) {
-        const sp = el("button", "spk big", "🔊"); sp.onclick = () => speak(q.speak); prompt.appendChild(sp);
-      }
       qc.appendChild(prompt);
       qc.appendChild(el("div", "qsub", esc(q.promptSub)));
 
@@ -376,7 +400,6 @@
       [...opts.children].forEach(b => { b.disabled = true; if (b.textContent === q.correct) b.classList.add("correct"); });
       if (opt === q.correct) score++;
       else { btn.classList.add("wrong"); wrongs.push(q); }
-      if (q.speak) speak(q.speak);
       app.querySelector(".qcard")._next.style.display = "inline-block";
     }
 

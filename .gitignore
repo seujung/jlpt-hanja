@@ -1,2 +1,5 @@
 .DS_Store
 *.log
+# 원본 스프레드시트(저작권 있는 Coto Academy 파일) — 배포/공유 제외
+data/*.xlsx
+data/*.csv
