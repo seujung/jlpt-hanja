@@ -301,7 +301,7 @@
         const ans = r.furigana || r.reading;
         const dis = pickDistinct(localReadPool, r, x => (x.furigana || x.reading), 3);
         qs.push({
-          type: "읽기 고르기", promptBig: r.word, promptSub: r.meaning ? "뜻: " + r.meaning : "이 단어의 읽기는?",
+          type: "읽기 고르기", promptBig: r.word, promptSub: "이 단어의 읽기는?",
           speak: ans, correct: ans,
           options: shuffle([ans, ...dis.map(x => x.furigana || x.reading)])
         });
