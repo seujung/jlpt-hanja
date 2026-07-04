@@ -99,7 +99,17 @@
   const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; };
   const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.random() * (i + 1) | 0;[a[i], a[j]] = [a[j], a[i]]; } return a; };
   const esc = s => (s || "").replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
-  const speakText = r => r.furigana || r.reading || r.word; // best pronunciation source
+  // 단어 전체 히라가나: furigana(한자부분 읽기) + 단어 끝 오쿠리가나
+  function fullReading(r) {
+    let fu = (r.furigana || "").trim();
+    const rd = (r.reading || "").replace(/[()（）]/g, "").trim();
+    if (!fu) fu = rd;
+    const w = r.word || "";
+    const m = w.match(/[ぁ-ゟ]+$/); // 단어 끝 히라가나(오쿠리가나)
+    if (m) { const oku = m[0]; if (fu && !fu.endsWith(oku)) fu += oku; }
+    return fu || rd || w;
+  }
+  const speakText = r => fullReading(r); // best pronunciation source
 
   /* ---------- router ---------- */
   function go(view, arg) {
@@ -244,7 +254,7 @@
           (r.reading ? `<span class="rd jp">${esc(r.reading)}</span>` : "");
         txt.appendChild(rd);
         const wline = el("div"); wline.className = "jp";
-        wline.innerHTML = `<span class="wd jp">${esc(r.word || "")}</span> <span class="fu">${esc(r.furigana || "")}</span>`;
+        wline.innerHTML = `<span class="wd jp">${esc(r.word || "")}</span> <span class="fu">${esc(fullReading(r))}</span>`;
         txt.appendChild(wline);
         if (r.meaning) txt.appendChild(el("div", "mn", esc(r.meaning)));
         const sp = el("button", "spk", "🔊");
@@ -303,7 +313,7 @@
       seenW.add(word);
       wordItems.push({ word, furigana: reading, reading, meaning });
     };
-    cards.forEach(c => c.readings.forEach(r => { if (r.word && (r.furigana || r.reading)) addWord(r.word, r.furigana || r.reading, r.meaning); }));
+    cards.forEach(c => c.readings.forEach(r => { if (r.word && (r.furigana || r.reading)) addWord(r.word, fullReading(r), r.meaning); }));
     // 관련 기출 단어(JLPT)도 퀴즈 대상에 포함
     cards.forEach(c => (c.related || []).forEach(rw => addWord(rw.w, rw.r, rw.m)));
     const qs = [];
@@ -351,9 +361,37 @@
 
   function renderQuiz(day) {
     const d = DATA.find(x => x.day === day);
-    const count = Math.min(10, d.cards.length);
-    let questions = buildQuestions(day, count);
-    let cur = 0, score = 0, wrongs = [];
+    const maxAvail = buildQuestions(day, 9999).length; // 생성 가능한 최대 문제 수
+    let count = Math.min(10, maxAvail);
+    let questions = [], cur = 0, score = 0, wrongs = [];
+
+    function setup() {
+      app.innerHTML = "";
+      const wrap = el("div", "quizwrap");
+      const head = el("div", "qhead");
+      const back = el("button", "btn ghost", "← 목록"); back.onclick = () => go("home");
+      head.append(back, el("span", null, `${String(day).padStart(2, "0")}일차 · ${esc(d.category)}`));
+      wrap.appendChild(head);
+      const qc = el("div", "qcard");
+      qc.appendChild(el("div", "qtype", "퀴즈 설정"));
+      qc.appendChild(el("div", "setup-q", "몇 문제를 풀까요?"));
+      qc.appendChild(el("div", "qsub", `이 일차에서 최대 ${maxAvail}문제까지 낼 수 있어요.`));
+      const opts = [10, 20, 30, 50].filter(n => n < maxAvail);
+      opts.push(maxAvail); // 전체
+      const pill = el("div", "count-pick");
+      opts.forEach(n => {
+        const b = el("button", "btn sec", n === maxAvail ? `전체 (${maxAvail})` : `${n}문제`);
+        b.onclick = () => { count = n; start(); };
+        pill.appendChild(b);
+      });
+      qc.appendChild(pill);
+      wrap.appendChild(qc);
+      app.appendChild(wrap);
+    }
+
+    function start() {
+      questions = buildQuestions(day, count); cur = 0; score = 0; wrongs = []; draw();
+    }
 
     function draw() {
       app.innerHTML = "";
@@ -414,10 +452,11 @@
       const msg = pct === 100 ? "완벽해요! 🎉" : pct >= 70 ? "잘했어요! 👏" : "다시 복습해봐요 💪";
       r.appendChild(el("div", "pct", `${pct}% · ${msg}` + (quizBest[day] ? ` · 최고점 ${quizBest[day]}%` : "")));
       const btns = el("div"); btns.style.display = "flex"; btns.style.gap = "10px"; btns.style.justifyContent = "center";
-      const again = el("button", "btn pri", "다시 풀기"); again.style.flex = "0"; again.onclick = () => { questions = buildQuestions(day, count); cur = 0; score = 0; wrongs = []; draw(); };
+      const again = el("button", "btn pri", "다시 풀기"); again.style.flex = "0"; again.onclick = () => start();
+      const change = el("button", "btn sec", "문제 수 변경"); change.style.flex = "0"; change.onclick = () => setup();
       const study = el("button", "btn sec", "카드 학습"); study.style.flex = "0"; study.onclick = () => go("study", day);
       const home = el("button", "btn ghost", "목록"); home.onclick = () => go("home");
-      btns.append(again, study, home);
+      btns.append(again, change, study, home);
       r.appendChild(btns);
       if (wrongs.length) {
         const rev = el("div", "review");
@@ -428,7 +467,7 @@
       wrap.appendChild(r);
       app.appendChild(wrap);
     }
-    draw();
+    setup();
   }
 
   /* ---------- init ---------- */

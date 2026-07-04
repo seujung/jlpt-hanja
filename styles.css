@@ -132,6 +132,9 @@ h1{font-size:22px;margin:4px 0 2px}
 .opt.wrong{background:rgba(255,93,108,.16);border-color:var(--bad)}
 .opt:disabled{cursor:default}
 .qfoot{margin-top:20px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+.setup-q{font-size:22px;font-weight:700;margin:12px 0 4px}
+.count-pick{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}
+.count-pick .btn{flex:1 1 0;min-width:110px;padding:16px 12px;font-size:16px}
 .qfoot .btn{min-width:150px;padding:11px 18px;font-size:15px}
 .result .btn{min-width:130px;padding:11px 18px}
 .result{text-align:center;padding:20px}
