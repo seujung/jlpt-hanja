@@ -303,9 +303,10 @@
     return out;
   }
 
-  function buildQuestions(day, count) {
+  function buildQuestions(day, count, levels) {
     const d = DATA.find(x => x.day === day);
     const cards = d.cards;
+    const lvSet = levels && levels.length ? new Set(levels) : null;
     const wordItems = [];
     const seenW = new Set();
     const addWord = (word, reading, meaning) => {
@@ -314,8 +315,8 @@
       wordItems.push({ word, furigana: reading, reading, meaning });
     };
     cards.forEach(c => c.readings.forEach(r => { if (r.word && (r.furigana || r.reading)) addWord(r.word, fullReading(r), r.meaning); }));
-    // 관련 기출 단어(JLPT)도 퀴즈 대상에 포함
-    cards.forEach(c => (c.related || []).forEach(rw => addWord(rw.w, rw.r, rw.m)));
+    // 관련 기출 단어(JLPT)도 퀴즈 대상에 포함 (선택한 레벨만)
+    cards.forEach(c => (c.related || []).forEach(rw => { if (!lvSet || lvSet.has(rw.l)) addWord(rw.w, rw.r, rw.m); }));
     const qs = [];
     // meaning questions from cards
     const cardPool = shuffle(cards);
@@ -359,11 +360,17 @@
     return qs;
   }
 
+  const ALL_LEVELS = ["N5", "N4", "N3", "N2", "N1"];
   function renderQuiz(day) {
     const d = DATA.find(x => x.day === day);
-    const maxAvail = buildQuestions(day, 9999).length; // 생성 가능한 최대 문제 수
-    let count = Math.min(10, maxAvail);
-    let questions = [], cur = 0, score = 0, wrongs = [];
+    // 관련 기출 단어 레벨 선택 (복수 선택, 기본값 N5~N2). 브라우저에 저장된 선택 우선.
+    let levels = (LS.get("hz_quiz_levels", null) || ["N5", "N4", "N3", "N2"]).filter(l => ALL_LEVELS.includes(l));
+    if (!levels.length) levels = ["N5", "N4", "N3", "N2"];
+    // 이 일차의 관련 단어에 실제로 존재하는 레벨만 노출
+    const availLevels = ALL_LEVELS.filter(l => d.cards.some(c => (c.related || []).some(rw => rw.l === l)));
+    let count = 10, questions = [], cur = 0, score = 0, wrongs = [];
+
+    function maxFor() { return buildQuestions(day, 9999, levels).length; }
 
     function setup() {
       app.innerHTML = "";
@@ -374,8 +381,29 @@
       wrap.appendChild(head);
       const qc = el("div", "qcard");
       qc.appendChild(el("div", "qtype", "퀴즈 설정"));
+
+      // 관련 기출 단어(JLPT) 레벨 선택 — 복수 선택
+      if (availLevels.length) {
+        qc.appendChild(el("div", "setup-q", "관련 기출 단어(JLPT) 레벨"));
+        qc.appendChild(el("div", "qsub", "퀴즈에 포함할 단어 레벨을 선택하세요. 여러 개 고를 수 있어요."));
+        const lvPick = el("div", "level-pick");
+        availLevels.forEach(l => {
+          const on = levels.includes(l);
+          const b = el("button", "lvl-toggle " + l + (on ? " on" : ""), l);
+          b.onclick = () => {
+            if (levels.includes(l)) { if (levels.length > 1) levels = levels.filter(x => x !== l); }
+            else levels = ALL_LEVELS.filter(x => levels.includes(x) || x === l);
+            LS.set("hz_quiz_levels", levels);
+            setup();
+          };
+          lvPick.appendChild(b);
+        });
+        qc.appendChild(lvPick);
+      }
+
+      const maxAvail = maxFor();
       qc.appendChild(el("div", "setup-q", "몇 문제를 풀까요?"));
-      qc.appendChild(el("div", "qsub", `이 일차에서 최대 ${maxAvail}문제까지 낼 수 있어요.`));
+      qc.appendChild(el("div", "qsub", `선택한 레벨 기준 최대 ${maxAvail}문제까지 낼 수 있어요.`));
       const opts = [10, 20, 30, 50].filter(n => n < maxAvail);
       opts.push(maxAvail); // 전체
       const pill = el("div", "count-pick");
@@ -390,7 +418,7 @@
     }
 
     function start() {
-      questions = buildQuestions(day, count); cur = 0; score = 0; wrongs = []; draw();
+      questions = buildQuestions(day, count, levels); cur = 0; score = 0; wrongs = []; draw();
     }
 
     function draw() {

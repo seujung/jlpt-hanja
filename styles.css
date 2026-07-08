@@ -135,6 +135,12 @@ h1{font-size:22px;margin:4px 0 2px}
 .setup-q{font-size:22px;font-weight:700;margin:12px 0 4px}
 .count-pick{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}
 .count-pick .btn{flex:1 1 0;min-width:110px;padding:16px 12px;font-size:16px}
+.level-pick{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0 4px}
+.lvl-toggle{font-size:16px;font-weight:800;color:#0b0e1c;border:2px solid transparent;border-radius:10px;padding:10px 16px;cursor:pointer;opacity:.4;filter:grayscale(.6);transition:opacity .12s,filter .12s,transform .08s}
+.lvl-toggle:hover{transform:translateY(-1px)}
+.lvl-toggle.on{opacity:1;filter:none;box-shadow:0 0 0 2px rgba(255,255,255,.2) inset}
+.lvl-toggle.N5{background:#7ee0b8}.lvl-toggle.N4{background:#7ec8ff}
+.lvl-toggle.N3{background:#ffd36b}.lvl-toggle.N2{background:#ffa96b}.lvl-toggle.N1{background:#ff8b9a}
 .qfoot .btn{min-width:150px;padding:11px 18px;font-size:15px}
 .result .btn{min-width:130px;padding:11px 18px}
 .result{text-align:center;padding:20px}
