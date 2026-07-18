@@ -159,3 +159,49 @@ h1{font-size:22px;margin:4px 0 2px}
   .front .char{font-size:110px}
   main{padding:16px 12px 50px}
 }
+
+/* ---------- 토리파 암기법 ---------- */
+.btn.toripa{background:linear-gradient(120deg,#ffcf5c22,#ff8b9a22);border:1px solid var(--gold);color:var(--gold)}
+.tp-tabs{display:flex;gap:8px;margin:4px 0 14px}
+.tp-tab{flex:1;background:var(--panel2);border:1px solid var(--line);color:var(--mut);
+  border-radius:12px;padding:12px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit}
+.tp-tab.on{background:var(--acc);color:#0b0e1c;border-color:var(--acc)}
+.tp-sum{background:var(--panel);border:1px solid var(--line);border-radius:12px;
+  padding:10px 14px;font-size:14px;color:var(--mut);margin-bottom:14px}
+.tp-sum b{color:var(--txt)}
+.tp-sum .tag{display:inline-block;border-radius:20px;padding:2px 10px;font-size:12px;margin-left:4px}
+.tp-sum .tag.c1{background:rgba(255,207,92,.15);color:var(--gold)}
+.tp-sum .tag.c2{background:rgba(255,169,107,.15);color:#ffa96b}
+.tp-sum .tag.c3{background:rgba(255,93,108,.15);color:var(--bad)}
+.tp-steps{display:flex;flex-direction:column;gap:10px}
+.tp-step{display:flex;align-items:center;gap:12px;background:linear-gradient(160deg,var(--panel),var(--panel2));
+  border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+.tp-step-txt{flex:1}
+.tp-step-txt .t{font-size:15px}
+.tp-step-txt .t b{color:var(--acc)}
+.tp-step-txt .d{font-size:13px;color:var(--mut);margin-top:3px}
+.tp-step-txt .d em{color:var(--gold);font-style:normal}
+.tp-foot{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap}
+.tp-foot .btn{flex:1;min-width:160px;padding:12px}
+.tp-foot .btn:disabled{opacity:.4;cursor:default}
+.big-spk{margin-left:14px;font-size:26px;background:none;border:none;cursor:pointer}
+.tp-cnt{color:var(--gold);font-size:14px;font-weight:700;margin:6px 0 2px}
+.tp-back{background:#0e1226;border:1px solid var(--line);border-radius:12px;padding:16px;margin:14px 0 4px;text-align:left}
+.tp-back.hidden{display:none}
+.tp-back .mn-big{font-size:22px;font-weight:700;color:var(--gold)}
+.tp-back .rd{color:var(--acc2);margin-top:6px;font-size:16px}
+.tp-back .ex{color:var(--mut);margin-top:6px;font-size:15px}
+.tp-judge{display:flex;gap:10px;margin-top:16px}
+.tp-judge .btn{flex:1;padding:14px;font-size:16px}
+.btn.ok{background:rgba(46,204,113,.16);border:1px solid var(--ok);color:var(--ok)}
+.btn.bad{background:rgba(255,93,108,.16);border:1px solid var(--bad);color:var(--bad)}
+.tp-note{display:flex;flex-direction:column;gap:8px;margin-top:12px;text-align:left}
+.tp-note-row{display:flex;align-items:center;gap:10px;background:#0e1226;border:1px solid var(--line);
+  border-radius:10px;padding:10px 14px}
+.tp-note-row .l{flex:1;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.tp-note-row .w{font-size:20px;font-weight:700}
+.tp-note-row .fu{color:var(--acc2);font-size:14px}
+.chk-mark{color:var(--bad);font-size:12px;letter-spacing:1px;min-width:34px}
+.mn-hide{color:transparent;background:#232a49;border-radius:6px;padding:2px 8px;font-size:14px;max-width:40%;user-select:none}
+.mn-hide.show{color:var(--txt);background:transparent;user-select:auto}
+.btn.sm{padding:5px 10px;font-size:12px}
