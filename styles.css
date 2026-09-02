@@ -179,6 +179,13 @@ select{font-family:inherit}
 .prompt{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:14px 0 4px}
 .prompt .big{font-size:64px;font-weight:500;line-height:1.1;letter-spacing:-.5px}
 .prompt .big.md{font-size:34px;font-weight:600}
+.say{cursor:pointer;border-radius:10px;transition:background .1s,color .1s}
+.say:hover{background:var(--accent-soft);color:var(--accent)}
+.prompt .big.say{padding:0 10px;margin-left:-10px}
+.say.locked{cursor:default;color:inherit}
+.say.locked:hover{background:transparent;color:inherit}
+.say-note{font-size:11px;color:var(--muted);font-weight:500;align-self:flex-end;padding-bottom:10px}
+.rv-front.say,.note-row .w.say{padding:0 6px;margin-left:-6px}
 .qsub{color:var(--muted);font-size:13px;margin-bottom:16px}
 .opts{display:flex;flex-direction:column;gap:8px}
 .opt{text-align:left;background:var(--surface2);border:1px solid transparent;color:var(--ink);

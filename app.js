@@ -242,7 +242,19 @@
     card.appendChild(el("div", "qtype", esc(q.type) + (o.tag ? ` <span class="qtag">${esc(o.tag)}</span>` : "")));
     if (o.guide) card.appendChild(el("p", "cap", esc(o.guide)));
     const big = el("div", "big jp" + (q.promptJpSmall ? " md" : ""), esc(q.promptBig));
-    card.appendChild(el("div", "prompt")).appendChild(big);
+    const prompt = el("div", "prompt"); prompt.appendChild(big); card.appendChild(prompt);
+    let answered = false;
+    if (q.speakAns) {
+      // 읽기 문제는 발음이 정답이므로 답한 뒤에만 재생
+      const locked = () => q.jp && !answered;
+      big.classList.add("say"); big.setAttribute("role", "button"); big.tabIndex = 0;
+      const syncHint = () => { big.classList.toggle("locked", locked()); big.title = locked() ? "답한 뒤 누르면 발음을 들려줍니다" : "누르면 발음을 들려줍니다"; };
+      syncHint();
+      big.onclick = () => { if (!locked()) speak(q.speakAns); };
+      big.onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); big.click(); } };
+      prompt.appendChild(el("span", "say-note", q.jp ? "🔊 답한 뒤 단어를 누르면 발음" : "🔊 단어를 누르면 발음"));
+      big._syncHint = syncHint;
+    }
     card.appendChild(el("div", "qsub", esc(q.promptSub)));
 
     const opts = el("div", "opts");
@@ -252,20 +264,21 @@
       const b = el("button", "opt" + (q.jp ? " jp" : ""), esc(opt));
       b.onclick = () => {
         const ok = opt === q.correct;
+        answered = true; if (big._syncHint) big._syncHint();
         [...opts.children].forEach(x => { x.disabled = true; if (x.textContent === q.correct) x.classList.add("correct"); });
         if (!ok) b.classList.add("wrong");
         if (q.reveal) {
           const it = q.reveal;
           reveal.innerHTML =
-            `<div class="rv-head">${ok ? "😃 정답" : "🤔 오답"} <span class="rv-front jp">${esc(it.front)}</span></div>` +
+            `<div class="rv-head">${ok ? "😃 정답" : "🤔 오답"} <span class="rv-front jp say" title="누르면 발음을 들려줍니다">${esc(it.front)}</span></div>` +
             (it.meaning ? `<div class="mn-big">${esc(it.meaning)}</div>` : "") +
             (it.reading ? `<div class="rd jp">${esc(it.reading)}</div>` : "") +
             (it.ex ? `<div class="ex jp">${esc(it.ex)}</div>` : "");
           const sp = el("button", "spk", "🔊"); sp.title = "발음 듣기"; sp.onclick = () => speak(it.speak);
+          reveal.querySelector(".rv-front").onclick = () => speak(it.speak);
           reveal.appendChild(sp);
           reveal.hidden = false;
         }
-        if (q.speakAns) speak(q.speakAns);
         next.hidden = false; next.focus();
         if (o.onAnswer) o.onAnswer(ok);
       };
@@ -556,10 +569,11 @@
         card.appendChild(el("div", "qtype", esc(cfg.title) + ` <span class="qtag">${marks(tpState(day, mode), it)}</span>`));
         card.appendChild(el("p", "cap", esc(cfg.guide)));
         const prompt = el("div", "prompt");
-        prompt.appendChild(el("div", "big jp", esc(it.front)));
+        const big = el("div", "big jp say", esc(it.front)); big.title = "누르면 발음을 들려줍니다";
+        prompt.appendChild(big);
         const spk = el("button", "spk big", "🔊"); spk.title = "발음 듣기";
         const cnt = el("div", "tp-cnt num", `듣고 따라 말하기 ${spoke}회 / 4~5회`);
-        spk.onclick = () => { speak(it.speak); spoke++; cnt.textContent = `듣고 따라 말하기 ${spoke}회 / 4~5회`; };
+        big.onclick = spk.onclick = () => { speak(it.speak); spoke++; cnt.textContent = `듣고 따라 말하기 ${spoke}회 / 4~5회`; };
         prompt.appendChild(spk);
         card.append(prompt, cnt);
         const back2 = el("div", "reveal inset");
@@ -670,7 +684,8 @@
       items.forEach(it => {
         const row = el("div", "note-row inset");
         const left = el("div", "l");
-        left.innerHTML = `<span class="chk-mark">${marks(st, it)}</span><span class="w jp">${esc(it.front)}</span>` + (it.reading ? ` <span class="fu jp">${esc(it.reading)}</span>` : "");
+        left.innerHTML = `<span class="chk-mark">${marks(st, it)}</span><span class="w jp say" title="누르면 발음을 들려줍니다">${esc(it.front)}</span>` + (it.reading ? ` <span class="fu jp">${esc(it.reading)}</span>` : "");
+        left.querySelector(".w").onclick = () => speak(it.speak);
         const mnBox = el("span", "mn-hide", esc(it.meaning || "—"));
         const mn = el("button", "btn ghost sm", "뜻"); mn.onclick = () => mnBox.classList.toggle("show");
         const sp = el("button", "spk", "🔊"); sp.title = "발음 듣기"; sp.onclick = () => speak(it.speak);
