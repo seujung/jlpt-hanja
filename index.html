@@ -5,23 +5,38 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>JLPT 상용한자 2136 학습</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<link rel="icon" href="data:,">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-<header class="topbar">
-  <div class="brand" id="homeBtn">日 JLPT 상용한자 <span>2136</span></div>
-  <nav id="crumbs" class="crumbs"></nav>
-  <div class="spacer"></div>
-  <label class="voice-sel">음성
-    <select id="voiceSelect"></select>
-  </label>
-</header>
-
-<main id="app"></main>
-
-<footer class="foot">데이터 출처: 해커스 일본어 · 개인 학습용 · 발음은 브라우저 음성합성(TTS) 사용</footer>
-
+<div class="shell">
+  <aside class="side" id="side">
+    <div class="brand-row" id="brand" role="button" tabindex="0" title="개요로 이동">
+      <span class="logo" aria-hidden="true"><span class="jp">日</span></span>
+      <div class="brand-txt"><b>JLPT 상용한자 2136</b><span>HANJA TRAINER</span></div>
+    </div>
+    <nav class="nav days" id="dayNav" aria-label="일차 목록"></nav>
+    <div class="side-tools">
+      <span class="nav-label">설정</span>
+      <label class="field">음성 <select id="voiceSelect"></select></label>
+      <div class="tool-btns">
+        <button class="btn ghost sm" id="expBtn">⬇ 진도 내보내기</button>
+        <button class="btn ghost sm" id="impBtn">⬆ 진도 불러오기</button>
+        <button class="btn ghost sm danger" id="resetBtn">🗑 진도 초기화</button>
+        <input type="file" id="impFile" accept="application/json,.json" hidden>
+      </div>
+      <div class="side-foot">데이터 출처: 해커스 일본어 · 개인 학습용 · 발음은 브라우저 음성합성(TTS)</div>
+    </div>
+  </aside>
+  <main class="main">
+    <div class="main-top">
+      <h2 id="pageTitle">개요</h2>
+      <div class="top-right" id="topRight"></div>
+    </div>
+    <div class="content" id="app"></div>
+  </main>
+</div>
 <script src="data/hanja.js"></script>
 <script src="app.js"></script>
 </body>
