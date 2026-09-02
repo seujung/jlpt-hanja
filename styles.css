@@ -228,6 +228,7 @@ select{font-family:inherit}
 .step.now .stx .t{color:var(--ink)}
 .stx .d{font-size:12px;color:var(--muted);margin-top:1px}
 .stx .d em{color:var(--warn);font-style:normal;font-weight:600}
+.st-btns{display:flex;gap:6px;flex:none;align-items:center}
 .tp-foot{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap}
 
 /* ---------- 5단계 노트 ---------- */

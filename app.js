@@ -22,7 +22,7 @@
   /* ---------- progress backup / restore ---------- */
   function exportProgress() {
     const payload = {
-      app: "jlpt-hanja", version: 3, exportedAt: new Date().toISOString(),
+      app: "jlpt-hanja", version: 4, exportedAt: new Date().toISOString(),
       quiz: quizBest, toripa,
       toripaLevels: LS.get("hz_toripa_levels", null), quizLevels: LS.get("hz_quiz_levels", null),
       voice: LS.get("hz_voice_name", null)
@@ -158,7 +158,7 @@
   const H6 = 6 * 3600e3, D3 = 3 * 24 * 3600e3;
   function tpState(day, mode) {
     const k = day + ":" + mode;
-    if (!toripa[k]) toripa[k] = { checks: {}, phase: 0, doneAt: null, rev6At: null, rev3At: null };
+    if (!toripa[k]) toripa[k] = { checks: {}, phase: 0, doneAt: null, rev6At: null, rev3At: null, run: null };
     return toripa[k];
   }
   // levels: null이면 무필터. 한자: jlpt 없는 카드는 항상 포함. 단어: 예시 단어는 부모 카드 기준, 기출 단어는 자체 레벨 기준.
@@ -324,9 +324,19 @@
       let n = Math.min(s.phase || 0, 5); if (s.rev6At) n = 6; if (s.rev3At) n = 7; return n;
     }));
   }
+  // 단계 진척 + 진행 중인 단계의 문항 진척(run)을 합친 0~1 비율
+  function tpFrac(day) {
+    return Math.max(0, ...["hanja", "word"].map(m => {
+      const s = toripa[day + ":" + m]; if (!s) return 0;
+      let n = Math.min(s.phase || 0, 5); if (s.rev6At) n = 6; if (s.rev3At) n = 7;
+      const r = s.run;
+      if (n < 7 && r && r.step === n + 1 && r.ids && r.ids.length) n += Math.min(r.idx / r.ids.length, 1);
+      return n / 7;
+    }));
+  }
   function dayStatus(d) {
-    const steps = tpStepsDone(d.day);
-    return { tp: steps >= 7 ? "done" : steps > 0 ? "progress" : "none", steps, quiz: quizBest[d.day] ?? null };
+    const steps = tpStepsDone(d.day), frac = tpFrac(d.day);
+    return { tp: steps >= 7 ? "done" : frac > 0 ? "progress" : "none", steps, frac, quiz: quizBest[d.day] ?? null };
   }
   function renderSidebar() {
     dayNav.innerHTML = "";
@@ -346,7 +356,7 @@
     dayNav.querySelectorAll("button").forEach(b => {
       const day = +b.dataset.day, s = dayStatus(dayOf(day));
       b.classList.toggle("on", day === curDay);
-      b.querySelector(".dm").innerHTML = `<i class="dot ${s.tp}" title="토리파 ${s.steps}/7단계"></i>` + (s.quiz != null ? `<span class="num">${s.quiz}%</span>` : "");
+      b.querySelector(".dm").innerHTML = `<i class="dot ${s.tp}" title="토리파 ${s.steps}/7단계${s.frac > s.steps / 7 ? " (진행 중)" : ""}"></i>` + (s.quiz != null ? `<span class="num">${s.quiz}%</span>` : "");
     });
     const on = dayNav.querySelector("button.on");
     if (on && on.scrollIntoViewIfNeeded) on.scrollIntoViewIfNeeded(false);
@@ -400,7 +410,7 @@
       (s.quiz != null ? `<span class="badge quiz num">최고 ${s.quiz}%</span>` : "") + `</div>` +
       `<div class="dt-cat">${esc(d.category)}</div>` +
       `<div class="dt-meta num">한자 ${d.cards.length}자 · 토리파 ${s.steps}/7단계</div>` +
-      `<div class="track ${s.tp}"><i style="width:${Math.round(s.steps / 7 * 100)}%"></i></div>`;
+      `<div class="track ${s.tp}"><i style="width:${Math.round(s.frac * 100)}%"></i></div>`;
     const btns = el("div", "dt-btns");
     const b1 = el("button", "btn pri sm", "토리파"); b1.onclick = () => { lastMode = "toripa"; go("day", d.day); };
     const b2 = el("button", "btn ghost sm", "퀴즈"); b2.onclick = () => { lastMode = "quiz"; go("day", d.day); };
@@ -497,6 +507,17 @@
     const pools = [all, allUnf, getGlobalPool(mode)];
     const chk = (st, n) => all.filter(it => (st.checks[it.id] || 0) >= n);
     const marks = (st, it) => "✔".repeat(st.checks[it.id] || 0);
+    const byId = new Map(all.map(it => [it.id, it]));
+    // 저장된 중간 진행(run)을 현재 레벨 항목으로 되살린다. 항목이 달라졌으면 null.
+    function runOf(st, n) {
+      const r = st.run;
+      if (!r || r.step !== n || !Array.isArray(r.ids) || !r.ids.length) return null;
+      const items = r.ids.map(id => byId.get(id));
+      if (items.some(x => !x)) return null;
+      const idx = Math.min(Math.max(r.idx | 0, 0), items.length);
+      if (idx <= 0 || idx >= items.length) return null;
+      return { items, idx };
+    }
 
     /* ----- 허브: 단계 목록 ----- */
     function hub() {
@@ -518,7 +539,7 @@
       const list = el("div", "steps");
       TP_STEPS.forEach((s, i) => {
         const n = i + 1;
-        let status, btn = null, hint = "";
+        let status, btn = null, hint = "", rz = runOf(st, n);
         if (n <= 5) {
           status = st.phase >= n ? "done" : st.phase === n - 1 ? "now" : "lock";
           if (status !== "lock") {
@@ -533,10 +554,17 @@
           else { status = "lock"; hint = st.phase >= 5 && at ? `${fmtTime(at)}부터 가능` : "1~5단계를 먼저 끝내세요"; }
           if (btn) btn.onclick = () => runStep(n);
         }
+        if (rz && btn && status !== "done") { btn.className = "btn sm ghost"; btn.textContent = "처음부터"; hint = `${rz.idx}/${rz.items.length}까지 진행 중`; }
+        else rz = null;
         const row = el("div", "step " + status);
         row.innerHTML = `<span class="stno num">${status === "done" ? "✓" : n}</span>` +
           `<div class="stx"><div class="t">${esc(s.t)}</div><div class="d">${esc(s.d)}${hint ? ` <em>${esc(hint)}</em>` : ""}</div></div>`;
-        if (btn) row.appendChild(btn);
+        if (rz || btn) {
+          const bx = el("div", "st-btns");
+          if (rz) { const rb = el("button", "btn sm pri", `이어서 ▶ ${rz.idx + 1}/${rz.items.length}`); rb.onclick = () => runStep(n, true); bx.appendChild(rb); }
+          if (btn) bx.appendChild(btn);
+          row.appendChild(bx);
+        }
         list.appendChild(row);
       });
       card.appendChild(list);
@@ -548,7 +576,7 @@
       const resetBtn = el("button", "btn ghost danger", "이 일차 토리파 초기화");
       resetBtn.onclick = () => {
         if (!confirm(`이 일차(${mode === "hanja" ? "한자" : "단어"})의 체크와 진행 상태를 모두 초기화할까요?`)) return;
-        toripa[day + ":" + mode] = { checks: {}, phase: 0, doneAt: null, rev6At: null, rev3At: null };
+        toripa[day + ":" + mode] = { checks: {}, phase: 0, doneAt: null, rev6At: null, rev3At: null, run: null };
         saveTp(); refreshSidebar(); hub();
       };
       foot.append(quizBtn, resetBtn);
@@ -567,7 +595,10 @@
 
     /* ----- 2단계: 듣고 따라 말하기 ----- */
     function cardRunner(n, cfg) {
-      let i = 0, spoke = 0;
+      const st0 = tpState(day, mode), ids = cfg.items.map(x => x.id);
+      let i = Math.min(cfg.start || 0, cfg.items.length - 1), spoke = 0;
+      const persist = () => { st0.run = { step: n, ids, idx: i }; saveTp(); refreshSidebar(); };
+      persist();
       function draw() {
         const it = cfg.items[i];
         host.innerHTML = "";
@@ -597,7 +628,7 @@
         card.appendChild(back2);
         const foot = el("div", "qfoot");
         const nx = el("button", "btn pri", i < cfg.items.length - 1 ? "다음 ▶" : "완료");
-        nx.onclick = () => { i++; spoke = 0; if (i < cfg.items.length) draw(); else cfg.onDone(); };
+        nx.onclick = () => { i++; spoke = 0; if (i < cfg.items.length) { persist(); draw(); } else { st0.run = null; cfg.onDone(); } };
         foot.appendChild(nx); card.appendChild(foot);
         wrap.appendChild(card); host.appendChild(wrap);
       }
@@ -608,8 +639,11 @@
     function quizRunner(n, cfg) {
       const st = tpState(day, mode);
       const items = cfg.items;
-      let i = 0;
-      function advance() { i++; if (i < items.length) draw(); else cfg.onDone(); }
+      const ids = items.map(x => x.id);
+      let i = Math.min(cfg.start || 0, items.length - 1);
+      const persist = () => { st.run = { step: n, ids, idx: i }; saveTp(); refreshSidebar(); };
+      persist();
+      function advance() { i++; if (i < items.length) { persist(); draw(); } else { st.run = null; cfg.onDone(); } }
       function draw() {
         const it = items[i];
         const q = makeQuestion(it, mode, pools);
@@ -625,18 +659,22 @@
     }
 
     /* ----- 단계별 실행 ----- */
-    function runStep(n) {
+    function runStep(n, resume) {
       const st = tpState(day, mode);
-      const done = msg => { saveTp(); refreshSidebar(); stepDone(n, msg); };
-      const items = n === 1 ? all : n <= 3 ? chk(st, 1) : n <= 5 ? chk(st, 2) : null;
+      const rz = resume ? runOf(st, n) : null;
+      const start = rz ? rz.idx : 0;
+      const done = msg => { st.run = null; saveTp(); refreshSidebar(); stepDone(n, msg); };
+      const items = rz ? rz.items : n === 1 ? all : n <= 3 ? chk(st, 1) : n <= 5 ? chk(st, 2) : null;
       if (n !== 1 && n !== 5 && n <= 5 && !items.length) return emptyStep(n);
 
       if (n === 1) {
-        if (st.phase >= 1 && chk(st, 1).length && !confirm("1단계를 다시 하면 현재 레벨 항목의 체크가 초기화됩니다. 계속할까요?")) return;
-        all.forEach(it => { delete st.checks[it.id]; });   // 다른 레벨의 체크는 보존
-        st.phase = 0; st.doneAt = null; st.rev6At = null; st.rev3At = null; saveTp();
+        if (!rz) {
+          if (st.phase >= 1 && chk(st, 1).length && !confirm("1단계를 다시 하면 현재 레벨 항목의 체크가 초기화됩니다. 계속할까요?")) return;
+          all.forEach(it => { delete st.checks[it.id]; });   // 다른 레벨의 체크는 보존
+          st.phase = 0; st.doneAt = null; st.rev6At = null; st.rev3At = null; saveTp();
+        }
         quizRunner(1, {
-          guide: "뜻과 읽기를 모두 고르세요. 하나라도 틀리면 ✔ 체크됩니다.", items: all,
+          guide: "뜻과 읽기를 모두 고르세요. 하나라도 틀리면 ✔ 체크됩니다.", items, start,
           onWrong: (it, st) => { st.checks[it.id] = 1; },
           onDone: () => {
             st.phase = 1;
@@ -646,12 +684,12 @@
         });
       } else if (n === 2) {
         cardRunner(2, {
-          title: "2단계 · 입으로 4~5번 암기", guide: "🔊를 누르고 4~5번 소리 내어 따라 읽으세요.", items,
+          title: "2단계 · 입으로 4~5번 암기", guide: "🔊를 누르고 4~5번 소리 내어 따라 읽으세요.", items, start,
           onDone: () => { st.phase = Math.max(st.phase, 2); done("이제 뜻을 가리고 스스로 확인해봐요."); }
         });
       } else if (n === 3) {
         quizRunner(3, {
-          guide: "뜻과 읽기를 먼저 떠올린 뒤 보기를 고르세요. 하나라도 틀리면 ✔✔ 더블체크.", items,
+          guide: "뜻과 읽기를 먼저 떠올린 뒤 보기를 고르세요. 하나라도 틀리면 ✔✔ 더블체크.", items, start,
           onWrong: (it, st) => { st.checks[it.id] = Math.max(st.checks[it.id] || 0, 2); },
           onDone: () => {
             st.phase = Math.max(st.phase, 3);
@@ -662,16 +700,17 @@
         });
       } else if (n === 4) {
         quizRunner(4, {
-          guide: "종이에 뜻과 읽기를 직접 적은 뒤 보기를 골라 채점하세요. 하나라도 틀리면 ✔✔✔ 쓰리체크.", items,
+          guide: "종이에 뜻과 읽기를 직접 적은 뒤 보기를 골라 채점하세요. 하나라도 틀리면 ✔✔✔ 쓰리체크.", items, start,
           onWrong: (it, st) => { st.checks[it.id] = 3; },
           onDone: () => { st.phase = Math.max(st.phase, 4); done("1회독 완료! 이제 노트에 정리해요."); }
         });
       } else if (n === 5) {
         noteStep(st);
       } else {
-        let rv = chk(st, 2); if (!rv.length) rv = chk(st, 1); if (!rv.length) rv = all;
+        let rv = rz ? rz.items : chk(st, 2);
+        if (!rz) { if (!rv.length) rv = chk(st, 1); if (!rv.length) rv = all; rv = shuffle(rv); }
         quizRunner(n, {
-          guide: "뜻과 읽기를 종이에 적어본 뒤 보기를 골라 채점하세요. 하나라도 틀리면 체크가 올라갑니다.", items: shuffle(rv),
+          guide: "뜻과 읽기를 종이에 적어본 뒤 보기를 골라 채점하세요. 하나라도 틀리면 체크가 올라갑니다.", items: rv, start,
           onWrong: (it, st) => { st.checks[it.id] = Math.min((st.checks[it.id] || 1) + 1, 3); },
           onDone: () => {
             if (n === 6) st.rev6At = Date.now(); else st.rev3At = Date.now();
@@ -710,7 +749,7 @@
       const doneBtn = el("button", "btn pri", "5단계 완료 — 복습 일정 시작");
       doneBtn.style.marginTop = "14px";
       doneBtn.onclick = () => {
-        st.phase = 5; st.doneAt = st.doneAt || Date.now(); saveTp(); refreshSidebar();
+        st.phase = 5; st.doneAt = st.doneAt || Date.now(); st.run = null; saveTp(); refreshSidebar();
         stepDone(5, `노트 정리 완료! 6시간 후(${fmtTime(st.doneAt + H6)})와 3일 뒤(${fmtTime(st.doneAt + D3)})에 다시 복습하세요.`);
       };
       card.appendChild(doneBtn);
