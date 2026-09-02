@@ -210,26 +210,28 @@
     }
     return out;
   }
-  // 토리파 판정용 4지선다. 단어 모드는 뜻/읽기 교차 출제.
-  function makeQuestion(it, mode, pools, i) {
-    const reading = () => {
-      const dis = pickDistractors(it, x => x.reading, 3, pools);
-      return { it, type: "읽기 고르기", promptBig: it.front, promptSub: "이 단어의 읽기는?", correct: it.reading, options: shuffle([it.reading, ...dis.map(x => x.reading)]), jp: true, speakAns: it.speak, reveal: it };
-    };
-    const meaning = () => {
+  // 토리파 판정용 문제: 뜻(한국어)과 일본어 읽기를 각각 4지선다로 묻고, 둘 다 맞아야 "안다"
+  function makeQuestion(it, mode, pools) {
+    const parts = [];
+    if (it.meaning) {
       const dis = pickDistractors(it, x => x.meaning, 3, pools);
-      return { it, type: "뜻 고르기", promptBig: it.front, promptSub: mode === "hanja" ? "이 한자의 뜻과 음은?" : "이 단어의 뜻은?", correct: it.meaning, options: shuffle([it.meaning, ...dis.map(x => x.meaning)]), jp: false, speakAns: it.speak, reveal: it };
-    };
-    if (mode === "word" && i % 2 === 1 && it.reading) return reading();
-    if (it.meaning) return meaning();
-    if (it.reading) return reading();
-    return null;
+      parts.push({ sub: mode === "hanja" ? "이 한자의 뜻과 음(한국어)은?" : "이 단어의 뜻은?", correct: it.meaning, options: shuffle([it.meaning, ...dis.map(x => x.meaning)]), jp: false });
+    }
+    if (it.reading) {
+      const dis = pickDistractors(it, x => x.reading, 3, pools);
+      parts.push({ sub: mode === "hanja" ? "이 한자의 일본어 읽기(훈독·음독)는?" : "이 단어의 일본어 읽기는?", correct: it.reading, options: shuffle([it.reading, ...dis.map(x => x.reading)]), jp: true });
+    }
+    if (!parts.length) return null;
+    const type = parts.length === 2 ? "뜻 · 읽기 고르기" : parts[0].jp ? "읽기 고르기" : "뜻 고르기";
+    return { it, type, promptBig: it.front, parts, speakAns: it.speak, reveal: it };
   }
 
   /* ---------- 공용 문제 카드 ---------- */
-  // q: {type, promptBig, promptSub, promptJpSmall?, correct, options, jp, speakAns?, reveal?}
-  // o: {head, onBack, backLabel, progress, tag, guide, onAnswer(ok), nextLabel, onNext}
+  // q: {type, promptBig, promptJpSmall?, parts:[{sub, correct, options, jp}], speakAns?, reveal?}
+  //    (parts 대신 promptSub/correct/options/jp 단일 필드도 허용)
+  // o: {head, onBack, backLabel, progress, tag, guide, onAnswer(allCorrect), nextLabel, onNext}
   function questionCard(host, q, o) {
+    const parts = q.parts || [{ sub: q.promptSub, correct: q.correct, options: q.options, jp: q.jp }];
     host.innerHTML = "";
     const wrap = el("div", "qwrap");
     const head = el("div", "qhead");
@@ -243,49 +245,60 @@
     if (o.guide) card.appendChild(el("p", "cap", esc(o.guide)));
     const big = el("div", "big jp" + (q.promptJpSmall ? " md" : ""), esc(q.promptBig));
     const prompt = el("div", "prompt"); prompt.appendChild(big); card.appendChild(prompt);
-    let answered = false;
+
+    let done = 0, allOk = true;
+    const anyJp = parts.some(p => p.jp);
+    let syncHint = () => {};
     if (q.speakAns) {
-      // 읽기 문제는 발음이 정답이므로 답한 뒤에만 재생
-      const locked = () => q.jp && !answered;
+      // 읽기를 묻는 문제는 발음이 정답이므로 모두 답한 뒤에만 재생
+      const locked = () => anyJp && done < parts.length;
       big.classList.add("say"); big.setAttribute("role", "button"); big.tabIndex = 0;
-      const syncHint = () => { big.classList.toggle("locked", locked()); big.title = locked() ? "답한 뒤 누르면 발음을 들려줍니다" : "누르면 발음을 들려줍니다"; };
+      syncHint = () => { big.classList.toggle("locked", locked()); big.title = locked() ? "답한 뒤 누르면 발음을 들려줍니다" : "누르면 발음을 들려줍니다"; };
       syncHint();
       big.onclick = () => { if (!locked()) speak(q.speakAns); };
       big.onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); big.click(); } };
-      prompt.appendChild(el("span", "say-note", q.jp ? "🔊 답한 뒤 단어를 누르면 발음" : "🔊 단어를 누르면 발음"));
-      big._syncHint = syncHint;
+      prompt.appendChild(el("span", "say-note", anyJp ? "🔊 답한 뒤 단어를 누르면 발음" : "🔊 단어를 누르면 발음"));
     }
-    card.appendChild(el("div", "qsub", esc(q.promptSub)));
 
-    const opts = el("div", "opts");
     const reveal = el("div", "reveal inset"); reveal.hidden = true;
     const next = el("button", "btn pri", o.nextLabel || "다음 ▶"); next.hidden = true; next.onclick = o.onNext;
-    q.options.forEach(opt => {
-      const b = el("button", "opt" + (q.jp ? " jp" : ""), esc(opt));
-      b.onclick = () => {
-        const ok = opt === q.correct;
-        answered = true; if (big._syncHint) big._syncHint();
-        [...opts.children].forEach(x => { x.disabled = true; if (x.textContent === q.correct) x.classList.add("correct"); });
-        if (!ok) b.classList.add("wrong");
-        if (q.reveal) {
-          const it = q.reveal;
-          reveal.innerHTML =
-            `<div class="rv-head">${ok ? "😃 정답" : "🤔 오답"} <span class="rv-front jp say" title="누르면 발음을 들려줍니다">${esc(it.front)}</span></div>` +
-            (it.meaning ? `<div class="mn-big">${esc(it.meaning)}</div>` : "") +
-            (it.reading ? `<div class="rd jp">${esc(it.reading)}</div>` : "") +
-            (it.ex ? `<div class="ex jp">${esc(it.ex)}</div>` : "");
-          const sp = el("button", "spk", "🔊"); sp.title = "발음 듣기"; sp.onclick = () => speak(it.speak);
-          reveal.querySelector(".rv-front").onclick = () => speak(it.speak);
-          reveal.appendChild(sp);
-          reveal.hidden = false;
-        }
-        next.hidden = false; next.focus();
-        if (o.onAnswer) o.onAnswer(ok);
-      };
-      opts.appendChild(b);
+    function finishAll() {
+      if (q.reveal) {
+        const it = q.reveal;
+        reveal.innerHTML =
+          `<div class="rv-head">${allOk ? "😃 정답" : "🤔 오답"} <span class="rv-front jp say" title="누르면 발음을 들려줍니다">${esc(it.front)}</span></div>` +
+          (it.meaning ? `<div class="mn-big">${esc(it.meaning)}</div>` : "") +
+          (it.reading ? `<div class="rd jp">${esc(it.reading)}</div>` : "") +
+          (it.ex ? `<div class="ex jp">${esc(it.ex)}</div>` : "");
+        const sp = el("button", "spk", "🔊"); sp.title = "발음 듣기"; sp.onclick = () => speak(it.speak);
+        reveal.querySelector(".rv-front").onclick = () => speak(it.speak);
+        reveal.appendChild(sp);
+        reveal.hidden = false;
+      }
+      next.hidden = false; next.focus();
+      if (o.onAnswer) o.onAnswer(allOk);
+    }
+    parts.forEach((p, pi) => {
+      const block = el("div", "qpart");
+      block.appendChild(el("div", "qsub", (parts.length > 1 ? `<span class="pno num">${pi + 1}</span>` : "") + esc(p.sub)));
+      const opts = el("div", "opts");
+      p.options.forEach(opt => {
+        const b = el("button", "opt" + (p.jp ? " jp" : ""), esc(opt));
+        b.onclick = () => {
+          const ok = opt === p.correct;
+          [...opts.children].forEach(x => { x.disabled = true; if (x.textContent === p.correct) x.classList.add("correct"); });
+          if (!ok) { b.classList.add("wrong"); allOk = false; }
+          block.classList.add("answered");
+          done++; syncHint();
+          if (done === parts.length) finishAll();
+        };
+        opts.appendChild(b);
+      });
+      block.appendChild(opts);
+      card.appendChild(block);
     });
     const foot = el("div", "qfoot"); foot.appendChild(next);
-    card.append(opts, reveal, foot);
+    card.append(reveal, foot);
     wrap.appendChild(card);
     host.appendChild(wrap);
   }
@@ -469,7 +482,7 @@
 
   /* ---------- 토리파 암기법 ---------- */
   const TP_STEPS = [
-    { t: "쭉 보면서 모르는 것 체크", d: "4지선다로 풀어 틀린 것에 ✔ 체크." },
+    { t: "쭉 보면서 모르는 것 체크", d: "뜻과 일본어 읽기를 4지선다로 풀어 틀린 것에 ✔ 체크." },
     { t: "체크한 것 입으로 4~5번 암기", d: "발음을 듣고 소리 내어 따라 읽어요." },
     { t: "뜻 가리고 확인 — 모르면 더블체크", d: "다시 풀어 틀리면 ✔✔ 더블체크." },
     { t: "더블체크 뜻 가리고 적기 (1회독)", d: "종이에 적고 보기로 채점. 틀리면 ✔✔✔ 쓰리체크." },
@@ -491,7 +504,7 @@
       host.innerHTML = "";
       const card = el("div", "card");
       card.appendChild(el("h2", null, "토리파 암기법 · 7단계"));
-      card.appendChild(el("p", "cap", "안다/모른다는 4지선다 문제로 판정합니다. 틀릴 때마다 체크가 올라가고, 체크된 것만 다음 단계로 넘어갑니다."));
+      card.appendChild(el("p", "cap", "안다/모른다는 뜻(한국어)과 일본어 읽기를 각각 4지선다로 풀어 판정합니다. 둘 다 맞아야 \"안다\"이고, 틀릴 때마다 체크가 올라가며 체크된 것만 다음 단계로 넘어갑니다."));
 
       const c1 = chk(st, 1).length, c2 = chk(st, 2).length, c3 = chk(st, 3).length;
       const sum = el("div", "tp-sum");
@@ -599,7 +612,7 @@
       function advance() { i++; if (i < items.length) draw(); else cfg.onDone(); }
       function draw() {
         const it = items[i];
-        const q = makeQuestion(it, mode, pools, i);
+        const q = makeQuestion(it, mode, pools);
         if (!q) return advance();
         questionCard(host, q, {
           head: `${n}단계 · ${i + 1} / ${items.length}`, onBack: hub, backLabel: "← 단계 목록",
@@ -623,7 +636,7 @@
         all.forEach(it => { delete st.checks[it.id]; });   // 다른 레벨의 체크는 보존
         st.phase = 0; st.doneAt = null; st.rev6At = null; st.rev3At = null; saveTp();
         quizRunner(1, {
-          guide: "보기에서 뜻을 고르세요. 틀리면 ✔ 체크됩니다.", items: all,
+          guide: "뜻과 읽기를 모두 고르세요. 하나라도 틀리면 ✔ 체크됩니다.", items: all,
           onWrong: (it, st) => { st.checks[it.id] = 1; },
           onDone: () => {
             st.phase = 1;
@@ -638,7 +651,7 @@
         });
       } else if (n === 3) {
         quizRunner(3, {
-          guide: "뜻을 먼저 떠올린 뒤 보기를 고르세요. 틀리면 ✔✔ 더블체크.", items,
+          guide: "뜻과 읽기를 먼저 떠올린 뒤 보기를 고르세요. 하나라도 틀리면 ✔✔ 더블체크.", items,
           onWrong: (it, st) => { st.checks[it.id] = Math.max(st.checks[it.id] || 0, 2); },
           onDone: () => {
             st.phase = Math.max(st.phase, 3);
@@ -649,7 +662,7 @@
         });
       } else if (n === 4) {
         quizRunner(4, {
-          guide: "종이에 뜻을 직접 적은 뒤 보기를 골라 채점하세요. 틀리면 ✔✔✔ 쓰리체크.", items,
+          guide: "종이에 뜻과 읽기를 직접 적은 뒤 보기를 골라 채점하세요. 하나라도 틀리면 ✔✔✔ 쓰리체크.", items,
           onWrong: (it, st) => { st.checks[it.id] = 3; },
           onDone: () => { st.phase = Math.max(st.phase, 4); done("1회독 완료! 이제 노트에 정리해요."); }
         });
@@ -658,7 +671,7 @@
       } else {
         let rv = chk(st, 2); if (!rv.length) rv = chk(st, 1); if (!rv.length) rv = all;
         quizRunner(n, {
-          guide: "뜻을 종이에 적어본 뒤 보기를 골라 채점하세요. 틀리면 체크가 올라갑니다.", items: shuffle(rv),
+          guide: "뜻과 읽기를 종이에 적어본 뒤 보기를 골라 채점하세요. 하나라도 틀리면 체크가 올라갑니다.", items: shuffle(rv),
           onWrong: (it, st) => { st.checks[it.id] = Math.min((st.checks[it.id] || 1) + 1, 3); },
           onDone: () => {
             if (n === 6) st.rev6At = Date.now(); else st.rev3At = Date.now();
@@ -722,7 +735,7 @@
     /* ----- 체크 단어 퀴즈 ----- */
     function tpQuiz() {
       const st = tpState(day, mode);
-      const qs = shuffle(all.filter(it => st.checks[it.id])).map((it, i) => makeQuestion(it, mode, pools, i)).filter(Boolean);
+      const qs = shuffle(all.filter(it => st.checks[it.id])).map(it => makeQuestion(it, mode, pools)).filter(Boolean);
       if (!qs.length) { alert("체크된 단어가 없어요. 먼저 1단계를 진행하세요."); return hub(); }
       let cur = 0, score = 0, wrongs = [];
       function draw() {
