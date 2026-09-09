@@ -215,6 +215,8 @@ select{font-family:inherit}
 .tp-sum{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px;color:var(--ink2);margin-bottom:14px}
 .tp-sum>span:first-child{margin-right:6px}
 .tp-sum b{color:var(--ink);font-weight:700}
+.tp-opt{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin:-6px 0 14px}
+.chip.on.rnd{background:var(--accent-soft);color:var(--accent)}
 .steps{display:flex;flex-direction:column;gap:8px}
 .step{display:flex;align-items:center;gap:12px;background:var(--surface2);border-radius:12px;padding:11px 14px}
 .stno{width:24px;height:24px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;

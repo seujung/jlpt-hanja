@@ -18,6 +18,8 @@
   const quizBest = LS.get("hz_quiz_best", {});   // day -> best %
   const toripa = LS.get("hz_toripa", {});        // "day:mode" -> {checks, phase, doneAt, rev6At, rev3At}
   const saveTp = () => LS.set("hz_toripa", toripa);
+  const tpRandom = () => LS.get("hz_toripa_random", false);   // 토리파 학습 순서 무작위 여부
+  const setTpRandom = v => LS.set("hz_toripa_random", !!v);
 
   /* ---------- progress backup / restore ---------- */
   function exportProgress() {
@@ -25,7 +27,7 @@
       app: "jlpt-hanja", version: 4, exportedAt: new Date().toISOString(),
       quiz: quizBest, toripa,
       toripaLevels: LS.get("hz_toripa_levels", null), quizLevels: LS.get("hz_quiz_levels", null),
-      voice: LS.get("hz_voice_name", null)
+      voice: LS.get("hz_voice_name", null), toripaRandom: LS.get("hz_toripa_random", null)
     };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
     const a = document.createElement("a");
@@ -50,6 +52,7 @@
         if (Array.isArray(p.toripaLevels)) LS.set("hz_toripa_levels", p.toripaLevels);
         if (Array.isArray(p.quizLevels)) LS.set("hz_quiz_levels", p.quizLevels);
         if (p.voice) LS.set("hz_voice_name", p.voice);
+        if (typeof p.toripaRandom === "boolean") setTpRandom(p.toripaRandom);
         alert("진도를 불러왔습니다. 기존 진도와 더 높은 값으로 병합했습니다.");
         go("home");
       } catch (e) { alert("불러오기 실패: " + e.message); }
@@ -508,6 +511,8 @@
     const chk = (st, n) => all.filter(it => (st.checks[it.id] || 0) >= n);
     const marks = (st, it) => "✔".repeat(st.checks[it.id] || 0);
     const byId = new Map(all.map(it => [it.id, it]));
+    // 랜덤 순서가 켜져 있으면 단계 시작 시 항목을 섞는다(이어서 하기는 저장된 순서 유지)
+    const ordered = arr => tpRandom() ? shuffle(arr) : arr;
     // 저장된 중간 진행(run)을 현재 레벨 항목으로 되살린다. 항목이 달라졌으면 null.
     function runOf(st, n) {
       const r = st.run;
@@ -534,6 +539,20 @@
         (all.length !== allUnf.length ? ` <span class="small-note num">(전체 ${allUnf.length}개 중 선택 레벨)</span>` : "") + `</span>` +
         `<span class="badge c1 num">✔ 체크 ${c1}</span><span class="badge c2 num">✔✔ 더블 ${c2}</span><span class="badge c3 num">✔✔✔ 쓰리 ${c3}</span>`;
       card.appendChild(sum);
+
+      const opt = el("div", "tp-opt");
+      const rnd = el("button", "chip rnd");
+      rnd.type = "button";
+      const syncRnd = () => {
+        const on = tpRandom();
+        rnd.className = "chip rnd" + (on ? " on" : "");
+        rnd.setAttribute("aria-pressed", on);
+        rnd.innerHTML = `\u{1F500} 랜덤 순서 <span class="num">${on ? "ON" : "OFF"}</span>`;
+      };
+      syncRnd();
+      rnd.onclick = () => { setTpRandom(!tpRandom()); syncRnd(); };
+      opt.append(rnd, el("span", "small-note", "켜면 1~5단계를 시작할 때마다 항목 순서를 무작위로 섞어요 (6·7단계 복습은 항상 무작위, '이어서 하기'는 저장된 순서 유지)"));
+      card.appendChild(opt);
 
       const now = Date.now();
       const list = el("div", "steps");
@@ -664,7 +683,8 @@
       const rz = resume ? runOf(st, n) : null;
       const start = rz ? rz.idx : 0;
       const done = msg => { st.run = null; saveTp(); refreshSidebar(); stepDone(n, msg); };
-      const items = rz ? rz.items : n === 1 ? all : n <= 3 ? chk(st, 1) : n <= 5 ? chk(st, 2) : null;
+      const base = n === 1 ? all : n <= 3 ? chk(st, 1) : n <= 5 ? chk(st, 2) : null;
+      const items = rz ? rz.items : base && ordered(base);
       if (n !== 1 && n !== 5 && n <= 5 && !items.length) return emptyStep(n);
 
       if (n === 1) {
@@ -722,7 +742,7 @@
 
     /* ----- 5단계: 노트 정리 ----- */
     function noteStep(st) {
-      const items = chk(st, 2);
+      const items = ordered(chk(st, 2));
       host.innerHTML = "";
       const wrap = el("div", "qwrap");
       const head = el("div", "qhead");
