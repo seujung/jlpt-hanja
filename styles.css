@@ -256,6 +256,44 @@ select{font-family:inherit}
 .count-pick{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
 .count-pick .btn{flex:1 1 0;min-width:100px;padding:13px 12px;font-size:14px}
 
+/* ---------- JLPT 실전: 계획 · 힌트 · 세션 ---------- */
+.nav .dm .due{background:var(--bd);color:#fff;border-radius:99px;padding:0 6px;font-size:10px}
+.plan-set{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:10px 0 6px}
+.plan-set .lv-label+.seg,.plan-set .lv-label+.date-in{margin-right:8px}
+.date-in{font-family:inherit;font-size:12.5px;color:var(--ink);background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:5px 9px}
+.plan .cap{margin-bottom:10px}
+.plan-today{margin-top:14px;display:flex;flex-direction:column;gap:10px}
+.pt-msg{font-size:13px;font-weight:600;color:var(--ink)}
+.pt-btns{display:flex;gap:6px;flex-wrap:wrap}
+.weak{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:12px}
+.kohint{margin-top:12px;padding-top:10px;border-top:1px solid var(--border)}
+.kh-title{font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.3px;margin-bottom:6px}
+.kohint table{width:100%;border-collapse:collapse;font-size:12.5px}
+.kohint th{font-size:10.5px;color:var(--muted);font-weight:600;text-align:left;padding:2px 8px 4px 0}
+.kohint td{padding:4px 8px 4px 0;vertical-align:top;border-top:1px solid var(--grid)}
+.kohint .kh-c{font-size:16px;font-weight:600}
+.kh-v{display:inline-block;font-size:10.5px;font-weight:700;border-radius:99px;padding:0 7px;margin-left:2px}
+.kh-v.ok{background:var(--gd-soft);color:var(--gd)}
+.kh-v.ex{background:var(--warn-soft);color:var(--warn)}
+.badge.timer{background:var(--accent-soft);color:var(--accent);font-size:13px;padding:4px 12px}
+.badge.timer.low{background:var(--bd-soft);color:var(--bd)}
+.sess-stats{text-align:left;display:flex;flex-direction:column;gap:10px;margin:0 0 16px}
+.sess-stats .ss{display:grid;grid-template-columns:1fr auto;gap:4px 10px;align-items:center;font-size:13px}
+.sess-stats .ss .track{grid-column:1 / -1}
+.result .cap{margin:0 0 14px}
+.src-list{display:inline-flex;flex-wrap:wrap;gap:4px;margin-left:6px;vertical-align:middle}
+.src-chip{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--border);background:var(--surface);color:var(--ink2);
+  border-radius:99px;padding:1px 9px;font-size:11px;font-weight:500;cursor:pointer}
+.src-chip:hover{background:var(--accent-soft);color:var(--accent);border-color:transparent}
+.src-chip b,.review .r .src-chip b{font-weight:700;color:var(--accent)}
+.src-chip .badge{padding:0 7px;font-size:10.5px}
+.rv-src{display:flex;align-items:center;flex-wrap:wrap;gap:4px;margin-top:8px}
+.rv-src .src-list{margin-left:0}
+.unit-sum{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:6px}
+.review .r .src-list{margin-top:2px}
+.mock-btn{margin-left:auto}
+.plan-set select.date-in{max-width:100%}
+
 /* ---------- responsive ---------- */
 @media (max-width:900px){
   body{padding:12px 10px}
