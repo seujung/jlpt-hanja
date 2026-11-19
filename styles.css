@@ -321,3 +321,13 @@ select{font-family:inherit}
   .tile{border-bottom:1px solid var(--grid)}
   .tile:nth-child(2n){border-right:0}
 }
+
+/* 홈 화면 앱(standalone): 노치·홈 표시줄 영역을 피합니다. */
+@media (display-mode: standalone){
+  body{padding-left:max(18px,env(safe-area-inset-left));padding-right:max(18px,env(safe-area-inset-right));
+    padding-bottom:max(26px,env(safe-area-inset-bottom))}
+}
+@media (display-mode: standalone) and (max-width:900px){
+  body{padding-left:max(10px,env(safe-area-inset-left));padding-right:max(10px,env(safe-area-inset-right));
+    padding-bottom:max(12px,env(safe-area-inset-bottom))}
+}

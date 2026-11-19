@@ -1497,6 +1497,11 @@
     lastMode = "toripa";
     go("day", +t.dataset.goday);
   });
+  // 홈 화면 앱: 서비스 워커로 오프라인 실행, 저장소 영구 보존 요청 (file:// 로 열면 건너뜀)
+  if ("serviceWorker" in navigator && location.protocol !== "file:") {
+    navigator.serviceWorker.register("sw.js").catch(() => {});
+  }
+  if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
   renderSidebar();
   go("home");
 })();
