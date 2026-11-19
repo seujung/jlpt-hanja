@@ -31,12 +31,22 @@
       target: LS.get("hz_target", null), exam: LS.get("hz_exam", null),
       srs: LS.get("hz_srs", {}), traps: LS.get("hz_traps", {}), mock: LS.get("hz_mock", [])
     };
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = `jlpt-hanja-progress-${new Date().toISOString().slice(0, 10)}.json`;
-    document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    // 공유 시트를 사용자 동작 안에서 열어야 하므로 이 앞에서 await 하지 않습니다.
+    window.ProgressFile.saveFile(
+      { fileName: window.ProgressFile.fileName(new Date()), json: JSON.stringify(payload, null, 2) },
+      navigator, document
+    ).then(r => {
+      if (r === "cancelled") return;
+      LS.set("hz_last_backup", Date.now()); // 기기별 상태라 백업 파일에는 넣지 않습니다.
+      renderBackupStatus();
+    }).catch(e => alert("저장 실패: " + (e && e.message ? e.message : e)));
+  }
+  function renderBackupStatus() {
+    const box = document.getElementById("backupStatus");
+    if (!box) return;
+    const st = window.ProgressFile.backupStatus(LS.get("hz_last_backup", null), Date.now());
+    box.textContent = st.text;
+    box.classList.toggle("warn", st.warn);
   }
   function importProgress(file) {
     const reader = new FileReader();
@@ -76,7 +86,7 @@
     reader.readAsText(file);
   }
   function resetProgress() {
-    if (!confirm("토리파 진행 상태, 퀴즈 점수, 복습 큐, 함정 통계, 모의 시험 기록을 모두 초기화할까요?\n(되돌릴 수 없습니다. 필요하면 먼저 '진도 내보내기'로 백업하세요.)")) return;
+    if (!confirm("토리파 진행 상태, 퀴즈 점수, 복습 큐, 함정 통계, 모의 시험 기록을 모두 초기화할까요?\n(되돌릴 수 없습니다. 필요하면 먼저 'iCloud에 저장'으로 백업하세요.)")) return;
     Object.keys(quizBest).forEach(k => delete quizBest[k]);
     Object.keys(toripa).forEach(k => delete toripa[k]);
     Object.keys(srs).forEach(k => delete srs[k]);
@@ -1478,6 +1488,7 @@
   document.getElementById("impBtn").onclick = () => impFile.click();
   document.getElementById("resetBtn").onclick = resetProgress;
   impFile.onchange = () => { if (impFile.files[0]) importProgress(impFile.files[0]); impFile.value = ""; };
+  renderBackupStatus();
   // 출처 단원 칩: 누르면 그 일차의 토리파 화면으로 이동 (모의 시험 중이면 확인)
   app.addEventListener("click", e => {
     const t = e.target.closest("[data-goday]");

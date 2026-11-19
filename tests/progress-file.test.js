@@ -62,3 +62,14 @@ test("daysSince counts whole days, null when never saved", () => {
   assert.equal(PF.daysSince(now - 3 * DAY - 1000, now), 3);
   assert.equal(PF.daysSince(now - 1000, now), 0);
 });
+
+test("backupStatus: never saved warns", () => {
+  assert.deepEqual(PF.backupStatus(null, Date.now()), { text: "아직 iCloud에 저장하지 않았어요", warn: true });
+});
+
+test("backupStatus: today, N days, and warn after 7 days", () => {
+  const now = Date.UTC(2026, 10, 20, 12);
+  assert.deepEqual(PF.backupStatus(now - 1000, now), { text: "마지막 저장: 오늘", warn: false });
+  assert.deepEqual(PF.backupStatus(now - 7 * DAY, now), { text: "마지막 저장: 7일 전", warn: false });
+  assert.deepEqual(PF.backupStatus(now - 8 * DAY, now), { text: "마지막 저장: 8일 전", warn: true });
+});

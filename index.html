@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
 <link rel="icon" href="data:,">
-<link rel="stylesheet" href="styles.css?v=202610151700">
+<link rel="stylesheet" href="styles.css?v=202611201200">
 </head>
 <body>
 <div class="shell">
@@ -21,11 +21,12 @@
       <span class="nav-label">설정</span>
       <label class="field">음성 <select id="voiceSelect"></select></label>
       <div class="tool-btns">
-        <button class="btn ghost sm" id="expBtn">⬇ 진도 내보내기</button>
-        <button class="btn ghost sm" id="impBtn">⬆ 진도 불러오기</button>
+        <button class="btn ghost sm" id="expBtn">☁ iCloud에 저장</button>
+        <button class="btn ghost sm" id="impBtn">☁ iCloud에서 불러오기</button>
         <button class="btn ghost sm danger" id="resetBtn">🗑 진도 초기화</button>
         <input type="file" id="impFile" accept="application/json,.json" hidden>
       </div>
+      <div class="backup-status" id="backupStatus" title="공유 화면에서 '파일에 저장' → iCloud Drive를 고르십시오"></div>
       <div class="side-foot">데이터 출처: 해커스 일본어 · 개인 학습용 · 발음은 브라우저 음성합성(TTS)</div>
     </div>
   </aside>
@@ -37,7 +38,8 @@
     <div class="content" id="app"></div>
   </main>
 </div>
-<script src="data/hanja.js?v=202610151700"></script>
-<script src="app.js?v=202610151700"></script>
+<script src="data/hanja.js?v=202611201200"></script>
+<script src="progress-file.js?v=202611201200"></script>
+<script src="app.js?v=202611201200"></script>
 </body>
 </html>

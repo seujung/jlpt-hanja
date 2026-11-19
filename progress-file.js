@@ -43,7 +43,8 @@
     a.click();
     a.remove();
     // 내려받기가 시작될 때까지 주소를 남겨 둡니다.
-    setTimeout(() => URL.revokeObjectURL(url), 60000);
+    const t = setTimeout(() => URL.revokeObjectURL(url), 60000);
+    if (t && typeof t.unref === "function") t.unref(); // Node 테스트가 타이머를 기다리지 않게 합니다.
     return "downloaded";
   }
 
@@ -53,7 +54,14 @@
     return Math.max(0, Math.floor(((now == null ? Date.now() : now) - ts) / DAY));
   }
 
-  const api = { fileName, saveFile, daysSince };
+  /** 설정 화면에 보여 줄 마지막 저장 문구입니다. 7일이 지나면 warn이 참입니다. */
+  function backupStatus(ts, now) {
+    const d = daysSince(ts, now);
+    if (d === null) return { text: "아직 iCloud에 저장하지 않았어요", warn: true };
+    return { text: d === 0 ? "마지막 저장: 오늘" : `마지막 저장: ${d}일 전`, warn: d > 7 };
+  }
+
+  const api = { fileName, saveFile, daysSince, backupStatus };
   if (typeof module === "object" && module.exports) module.exports = api;
   else root.ProgressFile = api;
 })(typeof window !== "undefined" ? window : globalThis);
