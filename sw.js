@@ -10,7 +10,7 @@
  * Safari 15에서 동작해야 하므로 import/export 없는 클래식 스크립트로 씁니다.
  * 배포할 때 VERSION과 index.html의 ?v= 값을 함께 바꾸십시오(scripts/bump-version.sh).
  */
-const VERSION = "202611201045";
+const VERSION = "202611201051";
 const CACHE_PREFIX = "jlpt-hanja-app-";
 const CACHE = CACHE_PREFIX + VERSION;
 const FONT_CACHE = "jlpt-hanja-fonts";
