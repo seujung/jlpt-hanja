@@ -3,10 +3,11 @@
 (function (root) {
   "use strict";
   const MIN = 60000, DAY = 86400000;
-  /** 인덱스 = 상자. 1 = 10분, 2 = 1일, 3 = 3일, 4 = 7일, 5 = 14일, 6 = 30일 */
-  const INTERVALS = [0, 10 * MIN, DAY, 3 * DAY, 7 * DAY, 14 * DAY, 30 * DAY];
-  const MAX_BOX = 6, KNOWN_BOX = 4;
-  const DUE_BLOCK = 150, SESSION_SIZE = 20, DEFAULT_CAP = 40, CAP_MIN = 10, CAP_MAX = 100;
+  /** 인덱스 = 상자. 1 = 10분, 2 = 1일, 3 = 3일, 4 = 7일, 5 = 14일, 6 = 30일, 7 = 60일 */
+  const INTERVALS = [0, 10 * MIN, DAY, 3 * DAY, 7 * DAY, 14 * DAY, 30 * DAY, 60 * DAY];
+  const MAX_BOX = 7, KNOWN_BOX = 4;
+  // 새 항목 정지 기준. 학습 기간의 하루 만기 수(N2·7월 일정에서 약 160개)보다 높게 둡니다.
+  const DUE_BLOCK = 250, SESSION_SIZE = 20, DEFAULT_CAP = 40, CAP_MIN = 10, CAP_MAX = 100;
 
   const intervalOf = box => INTERVALS[Math.min(Math.max(box | 0, 1), MAX_BOX)];
   const nextBox = (box, ok) => (ok ? Math.min((box || 1) + 1, MAX_BOX) : 1);
@@ -32,7 +33,7 @@
     return { m: Math.min(raw, cap), overCap: raw > cap };
   }
 
-  /** 오늘 더 낼 수 있는 새 항목 수입니다. 지금 복습할 항목이 150개를 넘으면 0입니다. */
+  /** 오늘 더 낼 수 있는 새 항목 수입니다. 지금 복습할 항목이 정지 기준(250개)을 넘으면 0입니다. */
   function newAllowedToday({ m, introduced, today, dueNow }) {
     if (dueNow > DUE_BLOCK) return 0;
     const used = introduced && introduced.day === today ? introduced.n || 0 : 0;

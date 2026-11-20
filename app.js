@@ -1454,7 +1454,7 @@
       const more = todayPlan(), left = more.due.length + more.fresh.length;
       sessionResult(host, res, [], {
         note: (left ? `오늘 남은 학습 ${left}개.` : "오늘 학습 완료 🎉") +
-          " 맞힌 항목은 다음 복습까지 간격이 늘어납니다(10분 → 1일 → 3일 → 7일 → 14일 → 30일). 처음 보고 맞힌 항목은 7일 뒤에 한 번 더 확인합니다.",
+          " 맞힌 항목은 다음 복습까지 간격이 늘어납니다(10분 → 1일 → 3일 → 7일 → 14일 → 30일 → 60일). 처음 보고 맞힌 항목은 7일 뒤에 한 번 더 확인합니다.",
         buttons: left ? [[`계속하기 (${left})`, "pri", () => go("today")], ["개요", "ghost", () => go("home")]] : [["개요", "pri", () => go("home")]]
       });
     }
@@ -1505,7 +1505,7 @@
       label: "복습", onBack: () => go("home"), backLabel: "← 개요", dontKnow: true,
       onAnswer: (q, ok) => { srsAnswer(q.key, ok); refreshSidebar(); },
       onFinish: (res, rest) => sessionResult(host, res, rest, {
-        note: "맞힌 단어는 다음 복습까지 간격이 늘어납니다(1일 → 3일 → 7일 → 14일 → 30일). 틀린 단어는 10분 뒤에 다시 나옵니다.",
+        note: "맞힌 단어는 다음 복습까지 간격이 늘어납니다(1일 → 3일 → 7일 → 14일 → 30일 → 60일). 틀린 단어는 10분 뒤에 다시 나옵니다.",
         buttons: [[srsDue().length ? `남은 복습 계속 (${srsDue().length})` : "복습 화면", "pri", () => go("review")], ["개요", "ghost", () => go("home")]]
       })
     });

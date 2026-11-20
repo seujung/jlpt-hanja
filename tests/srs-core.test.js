@@ -6,10 +6,11 @@ const S = require("../srs-core.js");
 const DAY = 86400000, MIN = 60000;
 
 test("intervals by box", () => {
-  assert.deepEqual([1, 2, 3, 4, 5, 6].map(S.intervalOf), [10 * MIN, DAY, 3 * DAY, 7 * DAY, 14 * DAY, 30 * DAY]);
+  assert.deepEqual([1, 2, 3, 4, 5, 6, 7].map(S.intervalOf), [10 * MIN, DAY, 3 * DAY, 7 * DAY, 14 * DAY, 30 * DAY, 60 * DAY]);
 });
-test("nextBox: up to 6, wrong resets to 1", () => {
-  assert.equal(S.nextBox(1, true), 2); assert.equal(S.nextBox(6, true), 6); assert.equal(S.nextBox(5, false), 1);
+test("nextBox: up to 7, stays at max, wrong resets to 1", () => {
+  assert.equal(S.nextBox(1, true), 2); assert.equal(S.nextBox(6, true), 7);
+  assert.equal(S.nextBox(7, true), 7); assert.equal(S.nextBox(5, false), 1);
 });
 test("answer: wrong increments n, right moves box and due", () => {
   const now = 1e12;
@@ -33,11 +34,11 @@ test("newPerDay: ceil, cap, overCap, zero/negative days, nothing left", () => {
   assert.deepEqual(S.newPerDay({ remaining: 50, studyDays: -3, cap: 100 }), { m: 50, overCap: false });
   assert.deepEqual(S.newPerDay({ remaining: 0, studyDays: 10, cap: 40 }), { m: 0, overCap: false });
 });
-test("newAllowedToday: subtracts today's count, resets on new day, blocks over 150", () => {
+test("newAllowedToday: subtracts today's count, resets on new day, blocks over 250", () => {
   assert.equal(S.newAllowedToday({ m: 40, introduced: { day: "2026-11-20", n: 15 }, today: "2026-11-20", dueNow: 0 }), 25);
   assert.equal(S.newAllowedToday({ m: 40, introduced: { day: "2026-11-19", n: 40 }, today: "2026-11-20", dueNow: 0 }), 40);
-  assert.equal(S.newAllowedToday({ m: 40, introduced: null, today: "2026-11-20", dueNow: 150 }), 40);
-  assert.equal(S.newAllowedToday({ m: 40, introduced: null, today: "2026-11-20", dueNow: 151 }), 0);
+  assert.equal(S.newAllowedToday({ m: 40, introduced: null, today: "2026-11-20", dueNow: 250 }), 40);
+  assert.equal(S.newAllowedToday({ m: 40, introduced: null, today: "2026-11-20", dueNow: 251 }), 0);
   assert.equal(S.newAllowedToday({ m: 10, introduced: { day: "2026-11-20", n: 12 }, today: "2026-11-20", dueNow: 0 }), 0);
 });
 test("composeSession: due first, fill with fresh up to 20", () => {
@@ -79,5 +80,5 @@ test("todayNew: items introduced today are not counted twice (few study days lef
   // 어제 기록은 오늘 계산에 넣지 않음
   assert.deepEqual(S.todayNew({ remaining: 100, studyDays: 10, cap: 40, introduced: { day: "2026-11-19", n: 30 }, today, dueNow: 0 }),
     { m: 10, overCap: false, allowed: 10 });
-  assert.equal(S.todayNew({ remaining: 100, studyDays: 10, cap: 40, introduced: null, today, dueNow: 151 }).allowed, 0);
+  assert.equal(S.todayNew({ remaining: 100, studyDays: 10, cap: 40, introduced: null, today, dueNow: 251 }).allowed, 0);
 });

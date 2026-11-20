@@ -205,14 +205,14 @@ async function main() {
 
   await scenario("F", async () => {
     const srs = {};
-    for (let i = 1; i <= 151; i++) srs["h:" + String(i).padStart(4, "0")] = { b: 2, due: 0, n: 0 };
+    for (let i = 1; i <= 251; i++) srs["h:" + String(i).padStart(4, "0")] = { b: 2, due: 0, n: 0 };
     const { ctx, page, errors, ls } = await open({ hz_target: "N5", hz_exam: ymd(now + 30 * DAY), hz_srs: srs, hz_srs_migrated: 1 });
     assert(/오늘 새 항목\s*0/.test(await page.textContent("#app")), "home shows 0 new");
     await page.click('[data-view="today"]');
     await page.waitForSelector(".card.q");
     assert(/1 \/ 20/.test(await page.textContent(".qpos")), "header 1 / 20");
     for (let i = 0; i < 20; i++) await idkNext(page);
-    assert(Object.keys(await ls("hz_srs")).length === 151, "no new keys added");
+    assert(Object.keys(await ls("hz_srs")).length === 251, "no new keys added");
     const nt = await ls("hz_new_today");
     assert(!nt || !nt.n, "no new items introduced");
     assert(!errors.length, errors.join("; "));
