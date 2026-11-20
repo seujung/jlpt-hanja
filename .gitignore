@@ -6,3 +6,4 @@ data/*.csv
 
 # OMC 에이전트 상태 파일
 .omc/
+node_modules/

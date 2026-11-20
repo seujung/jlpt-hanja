@@ -331,3 +331,6 @@ select{font-family:inherit}
   body{padding-left:max(10px,env(safe-area-inset-left));padding-right:max(10px,env(safe-area-inset-right));
     padding-bottom:max(12px,env(safe-area-inset-bottom))}
 }
+.opt.idk{margin-top:6px;width:100%;background:transparent;border-style:dashed;color:var(--muted);font-size:12.5px}
+.opt.idk:hover{color:var(--ink2)}
+.qpart.answered .opt.idk{display:none}

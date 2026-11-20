@@ -1,0 +1,12 @@
+{
+  "name": "jlpt-hanja",
+  "private": true,
+  "description": "개발용 테스트 도구만 담습니다. 배포되는 앱은 빌드 없이 정적 파일로 동작합니다.",
+  "scripts": {
+    "test": "node --test tests/",
+    "e2e": "node tests/e2e/today.e2e.cjs"
+  },
+  "devDependencies": {
+    "playwright": "1.65.1"
+  }
+}

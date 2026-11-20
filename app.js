@@ -359,27 +359,28 @@
   const daysUntil = s => { const [y, m, d] = s.split("-").map(Number); return Math.round((new Date(y, m - 1, d) - today0()) / 864e5); };
 
   /* ---------- 복습 큐 (SRS) · 함정 통계 ---------- */
-  const srs = LS.get("hz_srs", {});              // 단어 → {b: 상자 1~6, due, n: 틀린 횟수}
+  // 단어 → {b: 상자 1~6, due, n: 틀린 횟수}. 한자는 키 "h:<카드 id>"
+  const srs = LS.get("hz_srs", {});
   const saveSrs = () => LS.set("hz_srs", srs);
-  const SRS_IV = [0, 10 * 60e3, 864e5, 3 * 864e5, 7 * 864e5, 14 * 864e5, 30 * 864e5];
-  function srsWrong(w) {
-    if (!WORDS.has(w)) return;
-    const e = srs[w] || { b: 1, n: 0 };
-    e.b = 1; e.n = (e.n || 0) + 1; e.due = Date.now() + SRS_IV[1];
-    srs[w] = e; saveSrs();
-  }
-  function srsRight(w) {
-    const e = srs[w]; if (!e) return;
-    e.b = Math.min((e.b || 1) + 1, 6); e.due = Date.now() + SRS_IV[e.b];
+  const Srs = window.SrsCore;
+  const itemKey = (it, mode) => mode === "hanja" ? "h:" + it.id : it.front;
+  const isValidKey = k => typeof k === "string" && (k.startsWith("h:") ? CARD_BY_ID.has(k.slice(2)) : WORDS.has(k));
+  // 답 하나를 복습 큐에 반영한다(데이터에 없는 키는 무시). opts.repeat: 회차 끝 재출제
+  function srsAnswer(key, ok, opts) {
+    if (!isValidKey(key)) return;
+    srs[key] = Srs.answer(srs[key], ok, Date.now(), opts);
     saveSrs();
   }
-  const srsDue = () => { const now = Date.now(); return Object.keys(srs).filter(w => WORDS.has(w) && srs[w].due <= now); };
-  // 토리파 항목을 복습 큐에 넣는다. 한자 항목은 그 한자의 예시 단어를 넣는다.
-  function srsFromItem(it, mode) {
-    if (mode === "word") return srsWrong(it.front);
-    const c = CARD_BY_ID.get(it.id);
-    if (c) c.readings.forEach(r => { if (r.word) srsWrong(r.word); });
+  // 새 항목을 처음 본 결과: 맞히면 상자 4(7일 뒤 확인), 틀리면 상자 1
+  function srsFirstLook(key, ok) {
+    if (!isValidKey(key)) return;
+    srs[key] = Srs.firstLook(ok, Date.now());
+    saveSrs();
   }
+  const srsWrong = key => srsAnswer(key, false);
+  const srsDue = () => { const now = Date.now(); return Object.keys(srs).filter(k => isValidKey(k) && srs[k].due <= now); };
+  // 토리파 항목을 복습 큐에 넣는다(한자는 그 한자 자체)
+  const srsFromItem = (it, mode) => srsWrong(itemKey(it, mode));
   const traps = LS.get("hz_traps", {});           // 함정 유형 → 걸린 횟수
   function trackPicks(picks) {
     (picks || []).forEach(p => { if (!p.ok && p.tag) traps[p.tag] = (traps[p.tag] || 0) + 1; });
@@ -519,6 +520,20 @@
       next.hidden = false; next.focus();
       if (o.onAnswer) o.onAnswer(allOk, picks);
     }
+    const blocks = [];
+    // "모르겠어요": 이 문항과 남은 문항을 모두 오답으로 끝내고 정답을 보여 준다(함정 통계에는 세지 않음)
+    function giveUp() {
+      allOk = false;
+      blocks.forEach(({ block, opts, p }) => {
+        if (block.classList.contains("answered")) return;
+        [...opts.children].forEach(x => { x.disabled = true; if (x.textContent === p.correct) x.classList.add("correct"); });
+        picks.push({ opt: null, ok: false, tag: null });
+        block.classList.add("answered");
+        done++;
+      });
+      syncHint();
+      finishAll();
+    }
     parts.forEach((p, pi) => {
       const block = el("div", "qpart");
       block.appendChild(el("div", "qsub", (parts.length > 1 ? `<span class="pno num">${pi + 1}</span>` : "") + esc(p.sub)));
@@ -538,6 +553,12 @@
         opts.appendChild(b);
       });
       block.appendChild(opts);
+      if (o.dontKnow) {
+        const idk = el("button", "opt idk", "모르겠어요");
+        idk.onclick = () => { if (!block.classList.contains("answered")) giveUp(); };
+        block.appendChild(idk);
+      }
+      blocks.push({ block, opts, p });
       card.appendChild(block);
     });
     const foot = el("div", "qfoot"); foot.appendChild(next);
@@ -933,7 +954,12 @@
         questionCard(host, q, {
           head: `${n}단계 · ${i + 1} / ${items.length}`, onBack: hub, backLabel: "← 단계 목록",
           progress: i / items.length, tag: marks(st, it), guide: cfg.guide,
-          onAnswer: (ok, picks) => { trackPicks(picks); if (!ok) { cfg.onWrong(it, st); srsFromItem(it, mode); saveTp(); } },
+          onAnswer: (ok, picks) => {
+            trackPicks(picks);
+            if (!ok) { cfg.onWrong(it, st); srsFromItem(it, mode); saveTp(); }
+            else if (n === 1 && !srs[itemKey(it, mode)]) srsFirstLook(itemKey(it, mode), true);   // 1단계에서 맞힌 항목: 7일 뒤 확인
+          },
+          dontKnow: true,
           nextLabel: i < items.length - 1 ? "다음 ▶" : "완료", onNext: advance
         });
       }
@@ -1277,7 +1303,7 @@
       const q = qs[cur];
       questionCard(host, q, {
         head: `${o.label} · ${cur + 1} / ${qs.length}`, onBack: o.onBack, backLabel: o.backLabel,
-        progress: cur / qs.length,
+        progress: cur / qs.length, dontKnow: o.dontKnow,
         onAnswer: (ok, picks) => { res.push({ q, ok, picks }); trackPicks(picks); if (o.onAnswer) o.onAnswer(q, ok); },
         nextLabel: cur < qs.length - 1 ? "다음 ▶" : "결과 보기",
         onNext: () => { cur++; cur < qs.length ? draw() : end(); }
@@ -1328,6 +1354,27 @@
   }
 
   /* ---------- JLPT 실전: 오늘의 복습 (SRS) ---------- */
+  // 복습 큐 키 → 문제. 한자는 뜻·읽기 2단 문제, 단어는 漢字読み/表記(N1 목표면 읽기만)
+  let HANJA_ITEMS = null;
+  function hanjaItem(id) {
+    if (!HANJA_ITEMS) HANJA_ITEMS = new Map(getGlobalPool("hanja").map(it => [it.id, it]));
+    return HANJA_ITEMS.get(id);
+  }
+  function questionFor(key) {
+    if (!isValidKey(key)) return null;
+    let q;
+    if (key.startsWith("h:")) {
+      const it = hanjaItem(key.slice(2));
+      if (!it) return null;
+      const d = DATA.find(x => x.cards.some(c => c.id === it.id));
+      q = makeQuestion(it, "hanja", [d ? tpItems(d.day, "hanja", null) : [], getGlobalPool("hanja")]);
+      if (q) { q.section = "한자"; q.src = d ? [{ day: d.day, char: it.front }] : []; }
+    } else {
+      q = jlptQ(WORDS.get(key), targetLevel() === "N1" || Math.random() < 0.5 ? "yomi" : "hyoki", ALL_WORDS);
+    }
+    if (q) q.key = key;
+    return q;
+  }
   function renderReview() {
     setTitle("오늘의 복습");
     app.innerHTML = "";
@@ -1345,12 +1392,10 @@
       c.appendChild(b); host.appendChild(c);
       return;
     }
-    const onlyYomi = targetLevel() === "N1";
-    const items = shuffle(due).slice(0, 30);
-    const qs = items.map(w => jlptQ(WORDS.get(w), onlyYomi || Math.random() < 0.5 ? "yomi" : "hyoki", ALL_WORDS));
+    const qs = shuffle(due).slice(0, 30).map(questionFor).filter(Boolean);
     runSession(host, qs, {
-      label: "복습", onBack: () => go("home"), backLabel: "← 개요",
-      onAnswer: (q, ok) => { if (ok) srsRight(q.entry.w); else srsWrong(q.entry.w); refreshSidebar(); },
+      label: "복습", onBack: () => go("home"), backLabel: "← 개요", dontKnow: true,
+      onAnswer: (q, ok) => { srsAnswer(q.key, ok); refreshSidebar(); },
       onFinish: (res, rest) => sessionResult(host, res, rest, {
         note: "맞힌 단어는 다음 복습까지 간격이 늘어납니다(1일 → 3일 → 7일 → 14일 → 30일). 틀린 단어는 10분 뒤에 다시 나옵니다.",
         buttons: [[srsDue().length ? `남은 복습 계속 (${srsDue().length})` : "복습 화면", "pri", () => go("review")], ["개요", "ghost", () => go("home")]]
@@ -1478,6 +1523,28 @@
     setup();
   }
 
+  /* ---------- 기존 토리파 진도 → 복습 큐 (한 번만) ---------- */
+  function migrateToripaOnce() {
+    if (LS.get("hz_srs_migrated", null) === 1) return;
+    const levels = LS.get("hz_toripa_levels", null);
+    const checked = [], known = [];
+    Object.entries(toripa).forEach(([k, st]) => {
+      const [day, mode] = k.split(":");
+      if (!st || !dayOf(+day) || (mode !== "hanja" && mode !== "word")) return;
+      const checks = st.checks || {};
+      const tested = (st.phase || 0) >= 1 ? new Set(tpItems(+day, mode, Array.isArray(levels) ? levels : null).map(it => it.id)) : new Set();
+      tpItems(+day, mode, null).forEach(it => {
+        const key = itemKey(it, mode);
+        if (!isValidKey(key)) return;
+        if (checks[it.id] > 0) checked.push(key);
+        else if (tested.has(it.id)) known.push(key);
+      });
+    });
+    Object.assign(srs, Srs.migrateToripa({ checked, known, srs, now: Date.now() }));
+    saveSrs();
+    LS.set("hz_srs_migrated", 1);
+  }
+
   /* ---------- init ---------- */
   if (!DATA.length) { app.innerHTML = "<p>데이터를 불러오지 못했습니다.</p>"; return; }
   const brand = document.getElementById("brand");
@@ -1497,6 +1564,7 @@
     lastMode = "toripa";
     go("day", +t.dataset.goday);
   });
+  migrateToripaOnce();
   // 홈 화면 앱: 서비스 워커로 오프라인 실행, 저장소 영구 보존 요청 (file:// 로 열면 건너뜀)
   if ("serviceWorker" in navigator && location.protocol !== "file:") {
     navigator.serviceWorker.register("sw.js").catch(() => {});
