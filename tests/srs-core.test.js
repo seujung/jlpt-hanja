@@ -68,3 +68,16 @@ test("migrateToripa: never overwrites existing queue entries", () => {
   assert.equal(out["国際"], undefined);
   assert.equal(out["h:0001"].b, 4);
 });
+
+test("todayNew: items introduced today are not counted twice (few study days left)", () => {
+  const today = "2026-11-20";
+  // 남은 60개, 학습일 1일, 상한 40: 오늘 30개를 본 뒤에도 10개를 더 낼 수 있어야 함
+  assert.deepEqual(S.todayNew({ remaining: 30, studyDays: 1, cap: 40, introduced: { day: today, n: 30 }, today, dueNow: 0 }),
+    { m: 40, overCap: true, allowed: 10 });
+  // 남은 200개, 3일, 상한 100: 하루 67개
+  assert.equal(S.todayNew({ remaining: 150, studyDays: 3, cap: 100, introduced: { day: today, n: 50 }, today, dueNow: 0 }).allowed, 17);
+  // 어제 기록은 오늘 계산에 넣지 않음
+  assert.deepEqual(S.todayNew({ remaining: 100, studyDays: 10, cap: 40, introduced: { day: "2026-11-19", n: 30 }, today, dueNow: 0 }),
+    { m: 10, overCap: false, allowed: 10 });
+  assert.equal(S.todayNew({ remaining: 100, studyDays: 10, cap: 40, introduced: null, today, dueNow: 151 }).allowed, 0);
+});

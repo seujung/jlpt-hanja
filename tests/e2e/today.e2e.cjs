@@ -100,12 +100,29 @@ async function main() {
     const { ctx, page, errors, ls } = await open({ hz_toripa: { "1:hanja": tp({ "0001": 1 }) }, hz_toripa_levels: ALL });
     assert((await ls("hz_srs_migrated")) === 1, "migrated first");
     const f = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "jlpt-e2e-")), "p.json");
-    fs.writeFileSync(f, JSON.stringify({ app: "jlpt-hanja", version: 5, quiz: {}, toripa: { "2:hanja": tp({ "0100": 1 }) } }));
+    // 옮기기 이후에 저장한 파일(srs에 h: 키가 있음)은 다시 옮기지 않는다
+    fs.writeFileSync(f, JSON.stringify({ app: "jlpt-hanja", version: 5, quiz: {}, srs: { "h:0003": { b: 3, due: 0, n: 0 } }, toripa: { "2:hanja": tp({ "0100": 1 }) } }));
     await page.setInputFiles("#impFile", f);
-    await page.waitForFunction(() => JSON.parse(localStorage.getItem("hz_toripa"))["2:hanja"]);
+    await page.waitForFunction(() => (JSON.parse(localStorage.getItem("hz_toripa")) || {})["2:hanja"]);
     await page.reload(); await page.waitForSelector("#dayNav button");
     assert(!(await ls("hz_srs"))["h:0100"], "import must not re-run migration");
     assert((await ls("hz_srs_migrated")) === 1, "flag kept");
+    assert(!errors.length, errors.join("; "));
+    await ctx.close();
+  });
+
+  await scenario("I", async () => {
+    // 홈 화면 앱 첫 실행(빈 진도로 옮기기 완료) 뒤에 옮기기 이전 진도 파일을 불러오는 경우
+    const { ctx, page, errors, ls } = await open({});
+    assert((await ls("hz_srs_migrated")) === 1, "migrated on empty state");
+    const f = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "jlpt-e2e-")), "old.json");
+    fs.writeFileSync(f, JSON.stringify({ app: "jlpt-hanja", version: 5, quiz: {}, toripaLevels: ALL, srs: { "国際": { b: 3, due: 0, n: 0 } }, toripa: { "2:hanja": tp({ "0100": 1 }) } }));
+    await page.setInputFiles("#impFile", f);
+    await page.waitForFunction(() => (JSON.parse(localStorage.getItem("hz_toripa")) || {})["2:hanja"]);
+    const srs = await ls("hz_srs");
+    assert(srs["h:0100"] && srs["h:0100"].b === 2, "checked item from old file migrated: " + JSON.stringify(srs["h:0100"]));
+    assert(srs["h:0063"] && srs["h:0063"].b === 4, "tested item from old file → box 4");
+    assert(srs["国際"].b === 3, "file srs merged");
     assert(!errors.length, errors.join("; "));
     await ctx.close();
   });

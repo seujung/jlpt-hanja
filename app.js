@@ -79,6 +79,10 @@
           if (mockHist.length > 60) mockHist.splice(0, mockHist.length - 60);
           LS.set("hz_mock", mockHist);
         }
+        // 옮기기 이전에 저장한 파일(srs에 한자 키가 없음)이면, 그 파일의 토리파 진도를 복습 큐로 옮긴다
+        if (p.toripa && !Object.keys(p.srs || {}).some(k => k.startsWith("h:"))) {
+          migrateToripaEntries(p.toripa, Array.isArray(p.toripaLevels) ? p.toripaLevels : LS.get("hz_toripa_levels", null));
+        }
         alert("진도를 불러왔습니다. 기존 진도와 더 높은 값으로 병합했습니다.");
         go("home");
       } catch (e) { alert("불러오기 실패: " + e.message); }
@@ -1372,8 +1376,8 @@
     const due = srsDue(), scope = scopeKeys(tgt);
     const unseen = scope.filter(k => !srs[k]);
     const days = studyDaysLeft();
-    const { m, overCap } = Srs.newPerDay({ remaining: unseen.length, studyDays: days, cap });
-    const allowed = Srs.newAllowedToday({ m, introduced: LS.get("hz_new_today", null), today: Srs.dayKey(now), dueNow: due.length });
+    const { m, overCap, allowed } = Srs.todayNew({ remaining: unseen.length, studyDays: days, cap,
+      introduced: LS.get("hz_new_today", null), today: Srs.dayKey(now), dueNow: due.length });
     return { due, m, cap, overCap, raw: unseen.length ? Math.ceil(unseen.length / Math.max(days, 1)) : 0, allowed,
       fresh: unseen.slice(0, allowed), remaining: unseen.length, seen: scope.length - unseen.length, total: scope.length };
   }
@@ -1611,11 +1615,10 @@
   }
 
   /* ---------- 기존 토리파 진도 → 복습 큐 (한 번만) ---------- */
-  function migrateToripaOnce() {
-    if (LS.get("hz_srs_migrated", null) === 1) return;
-    const levels = LS.get("hz_toripa_levels", null);
+  // 토리파 상태 → 복습 큐. 체크된 항목은 상자 2, 1단계에서 문제로 나왔고 체크 없는 항목은 상자 4
+  function migrateToripaEntries(entries, levels) {
     const checked = [], known = [];
-    Object.entries(toripa).forEach(([k, st]) => {
+    Object.entries(entries || {}).forEach(([k, st]) => {
       const [day, mode] = k.split(":");
       if (!st || !dayOf(+day) || (mode !== "hanja" && mode !== "word")) return;
       const checks = st.checks || {};
@@ -1629,6 +1632,10 @@
     });
     Object.assign(srs, Srs.migrateToripa({ checked, known, srs, now: Date.now() }));
     saveSrs();
+  }
+  function migrateToripaOnce() {
+    if (LS.get("hz_srs_migrated", null) === 1) return;
+    migrateToripaEntries(toripa, LS.get("hz_toripa_levels", null));
     LS.set("hz_srs_migrated", 1);
   }
 

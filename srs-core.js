@@ -39,6 +39,16 @@
     return Math.max(0, m - used);
   }
 
+  /**
+   * 오늘의 새 항목 계획입니다. 오늘 이미 본 항목을 남은 수에 되돌려 넣고 M을 계산합니다.
+   * 그래야 하루 중간에 M이 줄어들어 오늘 본 항목을 두 번 빼는 일이 없습니다.
+   */
+  function todayNew({ remaining, studyDays, cap, introduced, today, dueNow }) {
+    const used = introduced && introduced.day === today ? introduced.n || 0 : 0;
+    const { m, overCap } = newPerDay({ remaining: remaining + used, studyDays, cap });
+    return { m, overCap, allowed: Math.min(remaining, newAllowedToday({ m, introduced, today, dueNow })) };
+  }
+
   /** 한 회차의 문제 키입니다. 복습을 먼저 채우고 남는 자리에 새 항목을 넣습니다. */
   function composeSession({ due, fresh, size }) {
     const n = size || SESSION_SIZE;
@@ -77,7 +87,7 @@
 
   const api = {
     INTERVALS, DUE_BLOCK, SESSION_SIZE, DEFAULT_CAP, CAP_MIN, CAP_MAX,
-    intervalOf, nextBox, answer, firstLook, newPerDay, newAllowedToday, composeSession, dayKey, migrateToripa
+    intervalOf, nextBox, answer, firstLook, newPerDay, newAllowedToday, composeSession, dayKey, migrateToripa, todayNew
   };
   if (typeof module === "object" && module.exports) module.exports = api;
   else root.SrsCore = api;
