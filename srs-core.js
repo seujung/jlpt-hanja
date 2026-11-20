@@ -65,6 +65,31 @@
   }
 
   /**
+   * 학습 일정의 경과일입니다. 시작일부터 오늘까지 센 날 수(1부터)를 1~total로 자릅니다.
+   * start가 없거나 형식이 틀리면 0을 돌려줍니다. total이 0 이하이면 0입니다.
+   */
+  function elapsedDays(start, now, total) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(start || "")) return 0;
+    if (!(total > 0)) return 0;
+    const [y, m, d] = start.split("-").map(Number);
+    const s = new Date(y, m - 1, d); s.setHours(0, 0, 0, 0);
+    const t = new Date(now); t.setHours(0, 0, 0, 0);
+    const n = Math.round((t - s) / DAY) + 1;
+    return Math.min(Math.max(n, 1), total);
+  }
+  /** 시작일로 인정할 값인지 확인합니다. */
+  const isDayKey = v => typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v);
+
+  /** 완료로 세는 상자입니다. 4 = 7일 뒤 확인까지 통과했습니다. */
+  const DONE_BOX = 4;
+  /** 항목 키 목록 중 완료한 항목 수를 셉니다. */
+  function countDone(keys, srs) {
+    let n = 0;
+    keys.forEach(k => { const e = srs[k]; if (e && (e.b || 0) >= DONE_BOX) n++; });
+    return n;
+  }
+
+  /**
    * 토리파 진도를 복습 큐로 옮길 항목입니다. 새로 넣을 항목만 돌려줍니다.
    * checked(틀렸던 항목) → 상자 2, known(1단계에서 맞힌 항목) → 상자 4.
    * 큐에 이미 있는 키와 중복 키는 건너뜁니다. checked를 먼저, 하루 perDay개씩 내일 0시부터 배치합니다.
@@ -87,8 +112,9 @@
   }
 
   const api = {
-    INTERVALS, DUE_BLOCK, SESSION_SIZE, DEFAULT_CAP, CAP_MIN, CAP_MAX,
-    intervalOf, nextBox, answer, firstLook, newPerDay, newAllowedToday, composeSession, dayKey, migrateToripa, todayNew
+    INTERVALS, DUE_BLOCK, SESSION_SIZE, DEFAULT_CAP, CAP_MIN, CAP_MAX, DONE_BOX,
+    intervalOf, nextBox, answer, firstLook, newPerDay, newAllowedToday, composeSession, dayKey, migrateToripa, todayNew,
+    elapsedDays, isDayKey, countDone
   };
   if (typeof module === "object" && module.exports) module.exports = api;
   else root.SrsCore = api;

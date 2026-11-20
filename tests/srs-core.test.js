@@ -82,3 +82,28 @@ test("todayNew: items introduced today are not counted twice (few study days lef
     { m: 10, overCap: false, allowed: 10 });
   assert.equal(S.todayNew({ remaining: 100, studyDays: 10, cap: 40, introduced: null, today, dueNow: 251 }).allowed, 0);
 });
+
+test("elapsedDays: counts from start day, clamps to 1~total", () => {
+  const now = new Date(2026, 10, 20, 15).getTime();   // 2026-11-20
+  assert.equal(S.elapsedDays("2026-11-20", now, 169), 1);   // 첫날
+  assert.equal(S.elapsedDays("2026-11-19", now, 169), 2);   // 하루 지남
+  assert.equal(S.elapsedDays("2026-11-01", now, 169), 20);
+  assert.equal(S.elapsedDays("2026-12-01", now, 169), 1);   // 미래 시작일은 1로 자름
+  assert.equal(S.elapsedDays("2026-01-01", now, 30), 30);   // 전체 일자를 넘지 않음
+  assert.equal(S.elapsedDays(null, now, 169), 0);           // 시작일 없음
+  assert.equal(S.elapsedDays("2026-11-20", now, 0), 0);     // 전체 일자 0
+  assert.equal(S.elapsedDays("bad", now, 169), 0);
+});
+test("isDayKey", () => {
+  assert.equal(S.isDayKey("2026-11-20"), true);
+  assert.equal(S.isDayKey("2026-1-2"), false);
+  assert.equal(S.isDayKey(null), false);
+  assert.equal(S.isDayKey(20261120), false);
+});
+test("countDone: box 4 and above counts, box 3 does not", () => {
+  const srs = { a: { b: 3 }, b: { b: 4 }, c: { b: 6 }, d: { b: 1 } };
+  assert.equal(S.countDone(["a", "b", "c", "d"], srs), 2);
+  assert.equal(S.countDone(["a", "b", "c", "d", "missing"], srs), 2);
+  assert.equal(S.countDone([], srs), 0);
+  assert.equal(S.countDone(["a"], {}), 0);   // 큐에 없는 항목은 세지 않음
+});

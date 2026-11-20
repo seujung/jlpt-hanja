@@ -28,7 +28,7 @@
       quiz: quizBest, toripa,
       toripaLevels: LS.get("hz_toripa_levels", null), quizLevels: LS.get("hz_quiz_levels", null),
       voice: LS.get("hz_voice_name", null), toripaRandom: LS.get("hz_toripa_random", null),
-      target: LS.get("hz_target", null), exam: LS.get("hz_exam", null),
+      target: LS.get("hz_target", null), exam: LS.get("hz_exam", null), start: LS.get("hz_start", null),
       srs: LS.get("hz_srs", {}), traps: LS.get("hz_traps", {}), mock: LS.get("hz_mock", [])
     };
     // 공유 시트를 사용자 동작 안에서 열어야 하므로 이 앞에서 await 하지 않습니다.
@@ -69,6 +69,11 @@
         if (typeof p.toripaRandom === "boolean") setTpRandom(p.toripaRandom);
         if (ALL_LEVELS.includes(p.target)) LS.set("hz_target", p.target);
         if (typeof p.exam === "string" && /^\d{4}-\d{2}-\d{2}$/.test(p.exam)) LS.set("hz_exam", p.exam);
+        // 시작일: 불러온 값이 더 이르면 그 값을 씁니다(학습을 일찍 시작한 기기 기준).
+        if (window.SrsCore.isDayKey(p.start)) {
+          const cur = LS.get("hz_start", null);
+          if (!window.SrsCore.isDayKey(cur) || p.start < cur) LS.set("hz_start", p.start);
+        }
         // 복습 큐: 없는 단어만 추가 / 함정 통계: 더 큰 값 / 모의 시험: 시각 기준 합치기
         Object.entries(p.srs || {}).forEach(([w, e]) => { if (!srs[w] && e && typeof e.due === "number") srs[w] = e; });
         saveSrs();
@@ -367,7 +372,8 @@
   /* ---------- 복습 큐 (SRS) · 함정 통계 ---------- */
   // 단어 → {b: 상자 1~6, due, n: 틀린 횟수}. 한자는 키 "h:<카드 id>"
   const srs = LS.get("hz_srs", {});
-  const saveSrs = () => LS.set("hz_srs", srs);
+  // 저장할 때마다 일차별 완료 수 캐시를 비웁니다(clearDayProgress는 함수 선언이라 호이스팅됨).
+  const saveSrs = () => { clearDayProgress(); LS.set("hz_srs", srs); };
   const Srs = window.SrsCore;
   const itemKey = (it, mode) => mode === "hanja" ? "h:" + it.id : it.front;
   const isValidKey = k => typeof k === "string" && (k.startsWith("h:") ? CARD_BY_ID.has(k.slice(2)) : WORDS.has(k));
@@ -621,6 +627,19 @@
     const steps = tpStepsDone(d.day), frac = tpFrac(d.day);
     return { tp: steps >= 7 ? "done" : frac > 0 ? "progress" : "none", steps, frac, quiz: quizBest[d.day] ?? null };
   }
+  // 오늘 학습 기준 일차 진도: 그 일차의 한자·단어 중 복습 상자 4 이상인 항목 수.
+  // 상자 4는 7일 뒤 확인까지 통과한 상태입니다. 응답이 바뀌면 캐시를 비웁니다.
+  const DAY_PROGRESS = {};
+  function clearDayProgress() { Object.keys(DAY_PROGRESS).forEach(k => delete DAY_PROGRESS[k]); }
+  function dayProgress(day) {
+    if (DAY_PROGRESS[day]) return DAY_PROGRESS[day];
+    const keys = [];
+    const seen = new Set();
+    const push = k => { if (!seen.has(k) && isValidKey(k)) { seen.add(k); keys.push(k); } };
+    tpItems(day, "hanja", null).forEach(it => push(itemKey(it, "hanja")));
+    tpItems(day, "word", null).forEach(it => push(itemKey(it, "word")));
+    return (DAY_PROGRESS[day] = { done: Srs.countDone(keys, srs), total: keys.length });
+  }
   function renderSidebar() {
     dayNav.innerHTML = "";
     dayNav.appendChild(el("span", "nav-label", "JLPT 실전"));
@@ -711,13 +730,16 @@
   }
   function dayTile(d) {
     const s = dayStatus(d);
+    const dp = dayProgress(d.day);
+    const pct = dp.total ? dp.done / dp.total : 0;
     const t = el("div", "day-tile");
     t.innerHTML =
       `<div class="dt-top"><span class="badge num">${pad2(d.day)}일차</span>` +
       (s.quiz != null ? `<span class="badge quiz num">최고 ${s.quiz}%</span>` : "") + `</div>` +
       `<div class="dt-cat">${esc(d.category)}</div>` +
-      `<div class="dt-meta num">한자 ${d.cards.length}자 · 토리파 ${s.steps}/7단계</div>` +
-      `<div class="track ${s.tp}"><i style="width:${Math.round(s.frac * 100)}%"></i></div>`;
+      `<div class="dt-meta num">한자 ${d.cards.length}자 · 완료 <b>${dp.done}</b>/${dp.total}</div>` +
+      `<div class="track ${s.tp}" title="오늘 학습 완료 ${dp.done}/${dp.total}"><i style="width:${Math.round(pct * 100)}%"></i></div>` +
+      (s.steps ? `<div class="dt-meta num small-note">토리파 ${s.steps}/7단계</div>` : "");
     const btns = el("div", "dt-btns");
     const b1 = el("button", "btn pri sm", "토리파"); b1.onclick = () => { lastMode = "toripa"; go("day", d.day); };
     const b2 = el("button", "btn ghost sm", "퀴즈"); b2.onclick = () => { lastMode = "quiz"; go("day", d.day); };
@@ -1282,6 +1304,11 @@
     const tiles = el("div", "tiles");
     const tile = (lb, v, lg) => { const t = el("div", "tile"); t.innerHTML = `<div class="lb">${lb}</div><div class="v num">${v}</div>` + (lg ? `<div class="lg">${lg}</div>` : ""); tiles.appendChild(t); };
     tile("시험까지", dl > 0 ? `D-${dl}` : dl === 0 ? "D-day" : "종료", fmtDate(new Date(ex + "T00:00")));
+    // 학습 일정: 달력 경과일 / 전체 학습일. 전체 학습일은 하루 새 항목 수를 계산하는 값과 같습니다.
+    const totalDays = studyDaysLeft(), startDay = LS.get("hz_start", null);
+    const elapsed = Srs.elapsedDays(startDay, Date.now(), totalDays);
+    tile("학습 일정", totalDays > 0 ? `${elapsed}<small>/ ${totalDays}일</small>` : "—",
+      startDay ? `시작 ${fmtDate(new Date(startDay + "T00:00"))}` : "시작일 없음");
     tile("오늘 복습", `${pl.due.length}<small>개</small>`, `복습 큐 전체 ${Object.keys(srs).length}개`);
     tile("오늘 새 항목", `${pl.fresh.length}<small>개</small>`, `하루 ${pl.m}개 (상한 ${pl.cap}개)`);
     tile("학습 범위 진행", `${pl.seen}<small>/ ${pl.total}</small>`, `${tgt}: 01~${pad2(lastDay)}일차 · 한 번 이상 본 항목`);
@@ -1655,6 +1682,10 @@
     migrateToripaEntries(toripa, LS.get("hz_toripa_levels", null));
     LS.set("hz_srs_migrated", 1);
   }
+  // 학습 시작일. 없으면 오늘로 저장합니다. 학습 일정의 경과일을 세는 기준입니다.
+  function ensureStart() {
+    if (!Srs.isDayKey(LS.get("hz_start", null))) LS.set("hz_start", Srs.dayKey(Date.now()));
+  }
 
   /* ---------- init ---------- */
   if (!DATA.length) { app.innerHTML = "<p>데이터를 불러오지 못했습니다.</p>"; return; }
@@ -1690,6 +1721,7 @@
     go("day", +t.dataset.goday);
   });
   migrateToripaOnce();
+  ensureStart();
   // 홈 화면 앱: 서비스 워커로 오프라인 실행, 저장소 영구 보존 요청 (file:// 로 열면 건너뜀)
   if ("serviceWorker" in navigator && location.protocol !== "file:") {
     navigator.serviceWorker.register("sw.js").catch(() => {});

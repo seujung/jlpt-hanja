@@ -254,6 +254,26 @@ async function main() {
     await ctx.close();
   });
 
+  await scenario("N", async () => {
+    // 일차 타일이 오늘 학습 완료(상자 4 이상)를 반영하고, 계획 카드가 학습 일정을 표시한다
+    const { ctx, page, errors, ls } = await open({
+      hz_target: "N5", hz_exam: ymd(now + 100 * DAY), hz_srs_migrated: 1,
+      hz_start: ymd(now - 9 * DAY),
+      hz_srs: { "h:0001": { b: 4, due: 0, n: 0 }, "h:0002": { b: 3, due: 0, n: 0 } }
+    });
+    const text = await page.textContent("#app");
+    assert(/완료\s*1\/\d+/.test(text), "day tile shows 1 done: " + text.slice(0, 300));
+    assert(/학습 일정/.test(text), "plan card has schedule tile");
+    assert(/10<\s*small>\/ \d+일/.test(text.replace(/\s+/g, " ")) || /10\/ \d+일/.test(text), "day 10 of total");
+    // 시작일이 없으면 오늘로 저장된다
+    await page.evaluate(() => localStorage.removeItem("hz_start"));
+    await page.reload();
+    await page.waitForSelector("#dayNav button");
+    assert((await ls("hz_start")) === ymd(now), "hz_start seeded to today");
+    assert(!errors.length, errors.join("; "));
+    await ctx.close();
+  });
+
   await browser.close();
   server.close();
   if (failures.length) { console.log("failed:", failures.join(", ")); process.exit(1); }
