@@ -20,6 +20,7 @@ const PRECACHE = [
   "index.html",
   "app.js",
   "progress-file.js",
+  "srs-core.js",
   "styles.css",
   "data/hanja.js",
   "manifest.webmanifest",

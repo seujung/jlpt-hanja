@@ -57,7 +57,7 @@ test("sw.js is a classic script and precaches files that exist", () => {
   };
   const list = vm.runInNewContext(code + "\n;PRECACHE", sandbox);
   for (const t of ["install", "activate", "fetch"]) assert.equal(typeof listeners[t], "function", t);
-  for (const f of ["./", "index.html", "app.js", "progress-file.js", "styles.css", "data/hanja.js", "manifest.webmanifest"]) {
+  for (const f of ["./", "index.html", "app.js", "progress-file.js", "srs-core.js", "styles.css", "data/hanja.js", "manifest.webmanifest"]) {
     assert.ok(list.includes(f), `precache has ${f}`);
   }
   for (const f of list) if (f !== "./") assert.ok(exists(f), `${f} exists`);
