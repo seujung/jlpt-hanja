@@ -360,3 +360,7 @@ select{font-family:inherit}
   .set-toggle.warn::after{content:"";position:absolute;top:4px;right:4px;width:7px;height:7px;border-radius:50%;background:var(--warn)}
   .side-tools.collapsed > :not(.set-toggle){display:none}
 }
+
+/* 읽기 보기: 훈독·음독 한 줄씩 */
+.opt .rl{display:block}
+.opt .rl+.rl{margin-top:2px}

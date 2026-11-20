@@ -535,7 +535,7 @@
       allOk = false;
       blocks.forEach(({ block, opts, p }) => {
         if (block.classList.contains("answered")) return;
-        [...opts.children].forEach(x => { x.disabled = true; if (x.textContent === p.correct) x.classList.add("correct"); });
+        [...opts.children].forEach(x => { x.disabled = true; if (x.dataset.v === p.correct) x.classList.add("correct"); });
         picks.push({ opt: null, ok: false, tag: null });
         block.classList.add("answered");
         done++;
@@ -548,10 +548,11 @@
       block.appendChild(el("div", "qsub", (parts.length > 1 ? `<span class="pno num">${pi + 1}</span>` : "") + esc(p.sub)));
       const opts = el("div", "opts");
       p.options.forEach(opt => {
-        const b = el("button", "opt" + (p.jp ? " jp" : ""), esc(opt));
+        const b = el("button", "opt" + (p.jp ? " jp" : ""), optHtml(opt));
+        b.dataset.v = opt;   // 정답 판정은 표시 글자가 아니라 원래 값으로 한다
         b.onclick = () => {
           const ok = opt === p.correct;
-          [...opts.children].forEach(x => { x.disabled = true; if (x.textContent === p.correct) x.classList.add("correct"); });
+          [...opts.children].forEach(x => { x.disabled = true; if (x.dataset.v === p.correct) x.classList.add("correct"); });
           if (!ok) { b.classList.add("wrong"); allOk = false; }
           // 함정 유형은 읽기·표기 문제(tags 있음)에서만 집계한다
           picks.push({ opt, ok, tag: ok || !p.tags ? null : p.tags[opt] || "other" });
@@ -579,6 +580,11 @@
     if (NARROW.matches) wrap.scrollIntoView({ block: "start" });
   }
   const NARROW = window.matchMedia("(max-width: 900px)");
+  // 한자 읽기 보기 "훈독 ひと · 음독 いち"는 훈독·음독을 한 줄씩 나눠 보여 준다
+  function optHtml(opt) {
+    if (!/^(훈독|음독) /.test(opt) || opt.indexOf(" · ") < 0) return esc(opt);
+    return opt.split(" · ").map(x => `<span class="rl">${esc(x)}</span>`).join("");
+  }
 
   /* ---------- 셸: 제목 · 사이드바 · 라우터 ---------- */
   const MANDANG = [

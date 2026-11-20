@@ -170,6 +170,21 @@ async function main() {
     await ctx.close();
   });
 
+  await scenario("M", async () => {
+    // 읽기 보기는 "훈독 …" / "음독 …" 두 줄로 나뉘고, 정답 판정·표시는 그대로 동작한다
+    const { ctx, page, errors, ls } = await open({ hz_srs_migrated: 1, hz_srs: { "h:0001": { b: 3, due: 0, n: 0 } }, hz_new_today: { day: ymd(Date.now()), n: 999 } }, devices["iPhone 14"]);
+    await page.click('[data-view="today"]');
+    await page.waitForSelector(".card.q .qpart + .qpart");
+    const lines = await page.evaluate(() => [...document.querySelectorAll(".qpart + .qpart .opt:not(.idk)")].map(b => b.querySelectorAll(".rl").length));
+    assert(lines.some(n => n === 2), "reading options split into two lines: " + JSON.stringify(lines));
+    await page.locator('.opt[data-v="한 일"]').click();
+    await page.locator('.opt[data-v="훈독 ひと · 음독 いち"]').click();
+    assert(await page.evaluate(() => document.querySelector('.opt[data-v="훈독 ひと · 음독 いち"]').classList.contains("correct")), "correct reading highlighted");
+    assert((await ls("hz_srs"))["h:0001"].b === 4, "answer judged correct → box 4");
+    assert(!errors.length, errors.join("; "));
+    await ctx.close();
+  });
+
   const now = Date.now();
   const idkNext = async page => { await page.click(".qpart:not(.answered) .opt.idk"); await page.click(".qfoot .btn.pri"); };
 
@@ -229,7 +244,7 @@ async function main() {
     const ANS = { "一": ["한 일", "훈독 ひと · 음독 いち"], "二": ["두 이", "훈독 ふた · 음독 に"] };
     for (let i = 0; i < 2; i++) {
       const ch = (await page.textContent(".card.q .big")).trim();
-      for (const a of ANS[ch]) await page.getByRole("button", { name: a, exact: true }).click();
+      for (const a of ANS[ch]) await page.locator(`.opt[data-v="${a}"]`).click();
       await page.click(".qfoot .btn.pri");
     }
     const srs = await ls("hz_srs");
