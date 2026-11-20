@@ -110,8 +110,74 @@ async function main() {
     await ctx.close();
   });
 
-  // 오늘 학습 시나리오(E~H)는 아래 TODAY 블록에 둡니다.
-  if (typeof module.exports.today === "function") await module.exports.today({ open, scenario, assert, ymd, DAY });
+  const now = Date.now();
+  const idkNext = async page => { await page.click(".qpart:not(.answered) .opt.idk"); await page.click(".qfoot .btn.pri"); };
+
+  await scenario("E", async () => {
+    const { ctx, page, errors, ls } = await open({ hz_target: "N5", hz_exam: ymd(now + 30 * DAY), hz_srs_migrated: 1 });
+    await page.click('[data-view="today"]');
+    await page.waitForSelector(".card.q");
+    assert(/1 \/ 20/.test(await page.textContent(".qpos")), "header 1 / 20: " + await page.textContent(".qpos"));
+    await page.click(".opt.idk");
+    assert(await page.isVisible(".reveal .spk"), "learning card with speaker");
+    const srs = await ls("hz_srs");
+    const keys = Object.keys(srs || {});
+    assert(keys.length === 1 && srs[keys[0]].b === 1, "one new key in box 1: " + JSON.stringify(srs));
+    assert((await ls("hz_new_today")).n === 1, "new_today n = 1");
+    assert(!errors.length, errors.join("; "));
+    await ctx.close();
+  });
+
+  await scenario("F", async () => {
+    const srs = {};
+    for (let i = 1; i <= 151; i++) srs["h:" + String(i).padStart(4, "0")] = { b: 2, due: 0, n: 0 };
+    const { ctx, page, errors, ls } = await open({ hz_target: "N5", hz_exam: ymd(now + 30 * DAY), hz_srs: srs, hz_srs_migrated: 1 });
+    assert(/오늘 새 항목\s*0/.test(await page.textContent("#app")), "home shows 0 new");
+    await page.click('[data-view="today"]');
+    await page.waitForSelector(".card.q");
+    assert(/1 \/ 20/.test(await page.textContent(".qpos")), "header 1 / 20");
+    for (let i = 0; i < 20; i++) await idkNext(page);
+    assert(Object.keys(await ls("hz_srs")).length === 151, "no new keys added");
+    const nt = await ls("hz_new_today");
+    assert(!nt || !nt.n, "no new items introduced");
+    assert(!errors.length, errors.join("; "));
+    await ctx.close();
+  });
+
+  await scenario("G", async () => {
+    const { ctx, page, errors, ls } = await open({ hz_target: "N2", hz_exam: ymd(now + 20 * DAY), hz_srs_migrated: 1 });
+    assert((await page.textContent("#app")).includes("이 속도로는 시험일까지 범위를 다 보지 못합니다"), "over-cap warning");
+    await page.fill("#capInput", "100");
+    await page.dispatchEvent("#capInput", "change");
+    assert((await ls("hz_new_cap")) === 100, "cap saved");
+    assert(!errors.length, errors.join("; "));
+    await ctx.close();
+  });
+
+  await scenario("H", async () => {
+    const { ctx, page, errors, ls } = await open({
+      hz_target: "N5", hz_exam: ymd(now + 30 * DAY), hz_srs_migrated: 1,
+      hz_srs: { "h:0001": { b: 3, due: 0, n: 0 }, "h:0002": { b: 3, due: 0, n: 0 } },
+      hz_new_today: { day: ymd(now), n: 999 }
+    });
+    await page.click('[data-view="today"]');
+    await page.waitForSelector(".card.q");
+    assert(/1 \/ 2/.test(await page.textContent(".qpos")), "two review questions");
+    await idkNext(page); await idkNext(page);
+    await page.waitForSelector(".card.q");
+    assert(/재출제/.test(await page.textContent(".qpos")), "repeat header");
+    const ANS = { "一": ["한 일", "훈독 ひと · 음독 いち"], "二": ["두 이", "훈독 ふた · 음독 に"] };
+    for (let i = 0; i < 2; i++) {
+      const ch = (await page.textContent(".card.q .big")).trim();
+      for (const a of ANS[ch]) await page.getByRole("button", { name: a, exact: true }).click();
+      await page.click(".qfoot .btn.pri");
+    }
+    const srs = await ls("hz_srs");
+    assert(srs["h:0001"].b === 2 && srs["h:0002"].b === 2, "repeat right → box 2: " + JSON.stringify(srs));
+    assert(srs["h:0001"].n === 1, "n counted once");
+    assert(!errors.length, errors.join("; "));
+    await ctx.close();
+  });
 
   await browser.close();
   server.close();

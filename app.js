@@ -605,7 +605,7 @@
   function renderSidebar() {
     dayNav.innerHTML = "";
     dayNav.appendChild(el("span", "nav-label", "JLPT 실전"));
-    [["review", "📝", "오늘의 복습"], ["mock", "⏱", "모의 시험"]].forEach(([v, ic, label]) => {
+    [["today", "📅", "오늘 학습"], ["review", "📝", "오늘의 복습"], ["mock", "⏱", "모의 시험"]].forEach(([v, ic, label]) => {
       const btn = el("button");
       btn.dataset.view = v;
       btn.innerHTML = `<span class="dn">${ic}</span><span class="dc">${label}</span><span class="dm"></span>`;
@@ -628,6 +628,7 @@
     dayNav.querySelectorAll("button[data-view]").forEach(b => {
       b.classList.toggle("on", b.dataset.view === curView);
       if (b.dataset.view === "review") { const n = srsDue().length; b.querySelector(".dm").innerHTML = n ? `<span class="num due">${n}</span>` : ""; }
+      if (b.dataset.view === "today") { const p = todayPlan(), n = p.due.length + p.fresh.length; b.querySelector(".dm").innerHTML = n ? `<span class="num due">${n}</span>` : ""; }
     });
     dayNav.querySelectorAll("button[data-day]").forEach(b => {
       const day = +b.dataset.day, s = dayStatus(dayOf(day));
@@ -646,6 +647,7 @@
     curDay = view === "day" ? arg : null;
     if (view === "day") renderDay(arg);
     else if (view === "review") renderReview();
+    else if (view === "today") renderToday();
     else if (view === "mock") renderMock(arg);
     else renderHome();
     refreshSidebar();
@@ -666,7 +668,7 @@
 
     const ov = el("div", "card");
     ov.appendChild(el("h2", null, "학습 현황"));
-    ov.appendChild(el("p", "cap", "왼쪽에서 일차를 고르거나 아래 카드에서 바로 시작하세요. 토리파 암기법 7단계로 외우고 퀴즈로 확인합니다. 진도는 이 브라우저에 저장됩니다."));
+    ov.appendChild(el("p", "cap", "매일 '오늘 학습'으로 복습과 새 항목을 풉니다. 일차별 토리파 7단계와 퀴즈는 원하는 일차를 골라 따로 할 수 있습니다. 진도는 이 기기에 저장됩니다."));
     const tiles = el("div", "tiles");
     const tile = (lb, v, lg) => { const t = el("div", "tile"); t.innerHTML = `<div class="lb">${lb}</div><div class="v num">${v}</div>` + (lg ? `<div class="lg">${lg}</div>` : ""); tiles.appendChild(t); };
     tile("전체 일차", DATA.length, "3개 마당");
@@ -1248,44 +1250,31 @@
     card.appendChild(el("p", "cap", `목표 레벨을 바꾸면 토리파·퀴즈 레벨 필터가 ${tgt === "N5" ? "N5" : "N5~목표 레벨"}로 맞춰집니다. 시험일 기본값은 다음 JLPT 시험일(7월·12월 첫째 일요일)입니다.`));
 
     const lastDay = TARGET_DAYS[tgt];
-    const scope = DATA.filter(d => d.day <= lastDay);
-    const doneN = scope.filter(d => tpStepsDone(d.day) >= 5).length;
-    const remain = scope.filter(d => tpStepsDone(d.day) < 5)
-      .sort((a, b) => ((tpFrac(b.day) > 0) - (tpFrac(a.day) > 0)) || a.day - b.day);
-    const buffer = dl > 0 ? Math.min(dl, Math.max(7, Math.round(dl * 0.25))) : 0;
-    const studyLeft = dl - buffer;
-    let perDay = 0, msg;
+    const pl = todayPlan();
+    let msg;
     if (dl < 0) msg = "시험일이 지났습니다. 다음 시험일을 입력하세요.";
-    else if (!remain.length) msg = "학습 범위의 모든 일차를 5단계까지 마쳤습니다. 오늘의 복습과 모의 시험에 집중하세요.";
-    else if (studyLeft > 0) {
-      perDay = Math.ceil(remain.length / studyLeft);
-      const rs = today0(); rs.setDate(rs.getDate() + Math.ceil(remain.length / perDay));
-      msg = `하루 ${perDay}일차씩 학습하면 ${fmtDate(rs)}에 학습 범위를 마칩니다. 그 뒤 시험일까지는 복습과 모의 시험 기간입니다.`;
-    } else {
-      perDay = Math.ceil(remain.length / Math.max(dl, 1));
-      msg = `복습 기간입니다. 남은 ${remain.length}개 일차를 하루 ${perDay}일차씩 끝내면서 복습과 모의 시험을 함께 하세요.`;
-    }
-    const due = srsDue().length, lastMock = mockHist.filter(h => h.lvl === tgt).slice(-1)[0];
+    else if (!pl.remaining) msg = "학습 범위의 모든 항목을 한 번 이상 봤습니다. 복습과 모의 시험에 집중하세요.";
+    else if (pl.overCap) msg = `이 속도로는 시험일까지 범위를 다 보지 못합니다. 목표 레벨이나 시험일을 조정하세요. (필요: 하루 ${pl.raw}개, 상한 ${pl.cap}개)`;
+    else msg = `하루 새 항목 ${pl.m}개씩 보면 학습 범위의 남은 ${pl.remaining}개를 시험 전 복습 기간 전에 모두 봅니다.`;
+    if (pl.due.length > Srs.DUE_BLOCK) msg += ` 복습이 ${pl.due.length}개 밀려 있어 오늘은 새 항목을 내지 않습니다.`;
+    const lastMock = mockHist.filter(h => h.lvl === tgt).slice(-1)[0];
     const tiles = el("div", "tiles");
     const tile = (lb, v, lg) => { const t = el("div", "tile"); t.innerHTML = `<div class="lb">${lb}</div><div class="v num">${v}</div>` + (lg ? `<div class="lg">${lg}</div>` : ""); tiles.appendChild(t); };
     tile("시험까지", dl > 0 ? `D-${dl}` : dl === 0 ? "D-day" : "종료", fmtDate(new Date(ex + "T00:00")));
-    tile("학습 범위 완료", `${doneN}<small>/ ${scope.length}일차</small>`, `${tgt}: 01~${pad2(lastDay)}일차 (5단계 기준)`);
-    tile("하루 목표", perDay ? `${perDay}<small>일차</small>` : "—", "남은 일차 ÷ 남은 학습일");
-    tile("오늘의 복습", `${due}<small>개</small>`, `복습 큐 전체 ${Object.keys(srs).length}개`);
-    tile("최근 모의 시험", lastMock ? `${Math.round(lastMock.ok / lastMock.n * 100)}<small>%</small>` : "—", lastMock ? `${esc(mockScope(lastMock.scope).short)} · ${lastMock.ok}/${lastMock.n} · ${fmtTime(lastMock.at)}` : `${tgt} 기록 없음`);
+    tile("오늘 복습", `${pl.due.length}<small>개</small>`, `복습 큐 전체 ${Object.keys(srs).length}개`);
+    tile("오늘 새 항목", `${pl.fresh.length}<small>개</small>`, `하루 ${pl.m}개 (상한 ${pl.cap}개)`);
+    tile("학습 범위 진행", `${pl.seen}<small>/ ${pl.total}</small>`, `${tgt}: 01~${pad2(lastDay)}일차 · 한 번 이상 본 항목`);
+    tile("최근 모의 시험", lastMock ? `${Math.round(lastMock.ok / lastMock.n * 100)}<small>%</small>` : "—", lastMock ? `${esc(mockScope(lastMock.scope).short)} · ${lastMock.ok}/${lastMock.n} · ${fmtTime(lastMock.at)}` : `${tgt} 문자 영역`);
     card.appendChild(tiles);
 
     const todo = el("div", "plan-today inset");
     todo.appendChild(el("div", "pt-msg", esc(msg)));
     const btns = el("div", "pt-btns");
-    remain.slice(0, perDay).forEach(d => {
-      const b = el("button", "btn sec sm", `${pad2(d.day)}일차 · ${esc(d.category)} <span class="small-note num">${tpStepsDone(d.day)}/7</span>`);
-      b.onclick = () => { lastMode = "toripa"; go("day", d.day); };
-      btns.appendChild(b);
-    });
-    const rv = el("button", "btn pri sm", `📝 오늘의 복습 <span class="num">${due}</span>`); rv.onclick = () => go("review");
+    const left = pl.due.length + pl.fresh.length;
+    const td = el("button", "btn pri sm", `📅 오늘 학습 <span class="num">${left}</span>`); td.onclick = () => go("today");
+    const rv = el("button", "btn ghost sm", `📝 복습만 <span class="num">${pl.due.length}</span>`); rv.onclick = () => go("review");
     const mk = el("button", "btn ghost sm", `⏱ ${tgt} 모의 시험`); mk.onclick = () => go("mock");
-    btns.append(rv, mk);
+    btns.append(td, rv, mk);
     todo.appendChild(btns);
     card.appendChild(todo);
 
@@ -1351,6 +1340,104 @@
     }
     host.appendChild(r);
     return { ok, n, sec };
+  }
+
+  /* ---------- 오늘 학습: 복습 + 새 항목 ---------- */
+  // 시험일까지 남은 학습일(시험 직전 복습 기간을 뺀 날 수)
+  function studyDaysLeft() {
+    const dl = daysUntil(examDate());
+    const buffer = dl > 0 ? Math.min(dl, Math.max(7, Math.round(dl * 0.25))) : 0;
+    return dl - buffer;
+  }
+  const newCap = () => { const v = +LS.get("hz_new_cap", Srs.DEFAULT_CAP); return Number.isFinite(v) ? Math.min(Srs.CAP_MAX, Math.max(Srs.CAP_MIN, Math.round(v))) : Srs.DEFAULT_CAP; };
+  // 학습 범위의 항목 키: 일차 순 → 한자 → 그 한자의 단어 → 다음 한자 (중복 단어는 처음 한 번)
+  const SCOPE_CACHE = {};
+  function scopeKeys(tgt) {
+    if (SCOPE_CACHE[tgt]) return SCOPE_CACHE[tgt];
+    const lv = levelsUpTo(tgt), lvSet = new Set(lv), out = [], seen = new Set();
+    const push = k => { if (!seen.has(k) && isValidKey(k)) { seen.add(k); out.push(k); } };
+    DATA.filter(d => d.day <= TARGET_DAYS[tgt]).forEach(d => {
+      const hanja = new Set(tpItems(d.day, "hanja", lv).map(it => it.id));
+      const words = new Set(tpItems(d.day, "word", lv).map(it => it.front));
+      d.cards.forEach(c => {
+        if (hanja.has(c.id)) push("h:" + c.id);
+        if (!c.jlpt || lvSet.has(c.jlpt)) c.readings.forEach(r => { if (r.word && words.has(r.word)) push(r.word); });
+        (c.related || []).forEach(rw => { if (rw.w && words.has(rw.w)) push(rw.w); });
+      });
+    });
+    return (SCOPE_CACHE[tgt] = out);
+  }
+  function todayPlan() {
+    const now = Date.now(), tgt = targetLevel(), cap = newCap();
+    const due = srsDue(), scope = scopeKeys(tgt);
+    const unseen = scope.filter(k => !srs[k]);
+    const days = studyDaysLeft();
+    const { m, overCap } = Srs.newPerDay({ remaining: unseen.length, studyDays: days, cap });
+    const allowed = Srs.newAllowedToday({ m, introduced: LS.get("hz_new_today", null), today: Srs.dayKey(now), dueNow: due.length });
+    return { due, m, cap, overCap, raw: unseen.length ? Math.ceil(unseen.length / Math.max(days, 1)) : 0, allowed,
+      fresh: unseen.slice(0, allowed), remaining: unseen.length, seen: scope.length - unseen.length, total: scope.length };
+  }
+  function bumpNewToday() {
+    const today = Srs.dayKey(Date.now()), cur = LS.get("hz_new_today", null);
+    LS.set("hz_new_today", { day: today, n: (cur && cur.day === today ? cur.n || 0 : 0) + 1 });
+  }
+  function renderToday() {
+    setTitle("오늘 학습");
+    app.innerHTML = "";
+    const host = el("div", "host");
+    app.appendChild(host);
+    const pl = todayPlan();
+    if (!pl.due.length && !pl.fresh.length) {
+      const c = el("div", "card");
+      c.appendChild(el("h2", null, "오늘 학습 완료 🎉"));
+      const next = Object.values(srs).map(e => e.due).filter(t => t > Date.now()).sort((a, b) => a - b)[0];
+      c.appendChild(el("p", "cap", esc(
+        (pl.remaining && !pl.allowed ? "오늘 볼 새 항목을 모두 봤습니다. " : "") +
+        (next ? `다음 복습은 ${fmtTime(next)}입니다.` : "복습할 항목이 없습니다."))));
+      const b = el("button", "btn ghost", "개요"); b.onclick = () => go("home");
+      c.appendChild(b); host.appendChild(c);
+      return;
+    }
+    const sess = Srs.composeSession({ due: shuffle(pl.due), fresh: pl.fresh });
+    const main = [...sess.review.map(k => ({ k, isNew: false })), ...sess.fresh.map(k => ({ k, isNew: true }))]
+      .map(x => { const q = questionFor(x.k); return q && { q, isNew: x.isNew }; }).filter(Boolean);
+    const repeats = [], res = [];
+    let i = 0, phase = "main";
+    const list = () => phase === "main" ? main : repeats;
+    function draw() {
+      const cur = list()[i];
+      questionCard(host, cur.q, {
+        head: phase === "main" ? `오늘 학습 · ${i + 1} / ${main.length}${cur.isNew ? " · 새 항목" : ""}` : `재출제 · ${i + 1} / ${repeats.length}`,
+        onBack: () => go("home"), backLabel: "← 개요", progress: i / list().length, dontKnow: true,
+        tag: cur.isNew ? "NEW" : "",
+        onAnswer: (ok, picks) => {
+          trackPicks(picks);
+          if (phase === "repeat") srsAnswer(cur.q.key, ok, { repeat: true });
+          else {
+            res.push({ q: cur.q, ok, picks });
+            if (cur.isNew) { srsFirstLook(cur.q.key, ok); bumpNewToday(); } else srsAnswer(cur.q.key, ok);
+            if (!ok) repeats.push({ q: questionFor(cur.q.key) || cur.q, isNew: false });
+          }
+          refreshSidebar();
+        },
+        nextLabel: "다음 ▶",
+        onNext: () => {
+          i++;
+          if (i < list().length) return draw();
+          if (phase === "main" && repeats.length) { phase = "repeat"; i = 0; return draw(); }
+          finish();
+        }
+      });
+    }
+    function finish() {
+      const more = todayPlan(), left = more.due.length + more.fresh.length;
+      sessionResult(host, res, [], {
+        note: (left ? `오늘 남은 학습 ${left}개.` : "오늘 학습 완료 🎉") +
+          " 맞힌 항목은 다음 복습까지 간격이 늘어납니다(10분 → 1일 → 3일 → 7일 → 14일 → 30일). 처음 보고 맞힌 항목은 7일 뒤에 한 번 더 확인합니다.",
+        buttons: left ? [[`계속하기 (${left})`, "pri", () => go("today")], ["개요", "ghost", () => go("home")]] : [["개요", "pri", () => go("home")]]
+      });
+    }
+    draw();
   }
 
   /* ---------- JLPT 실전: 오늘의 복습 (SRS) ---------- */
@@ -1556,6 +1643,13 @@
   document.getElementById("resetBtn").onclick = resetProgress;
   impFile.onchange = () => { if (impFile.files[0]) importProgress(impFile.files[0]); impFile.value = ""; };
   renderBackupStatus();
+  const capInput = document.getElementById("capInput");
+  capInput.value = newCap();
+  capInput.onchange = () => {
+    LS.set("hz_new_cap", Math.min(Srs.CAP_MAX, Math.max(Srs.CAP_MIN, Math.round(+capInput.value || Srs.DEFAULT_CAP))));
+    capInput.value = newCap();
+    if (curView === "home") go("home"); else refreshSidebar();
+  };
   // 출처 단원 칩: 누르면 그 일차의 토리파 화면으로 이동 (모의 시험 중이면 확인)
   app.addEventListener("click", e => {
     const t = e.target.closest("[data-goday]");
