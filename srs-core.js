@@ -53,9 +53,31 @@
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   }
 
+  /**
+   * 토리파 진도를 복습 큐로 옮길 항목입니다. 새로 넣을 항목만 돌려줍니다.
+   * checked(틀렸던 항목) → 상자 2, known(1단계에서 맞힌 항목) → 상자 4.
+   * 큐에 이미 있는 키와 중복 키는 건너뜁니다. checked를 먼저, 하루 perDay개씩 내일 0시부터 배치합니다.
+   */
+  function migrateToripa({ checked, known, srs, now, perDay }) {
+    const per = perDay || 30, out = {}, order = [];
+    const add = (key, b, n) => {
+      if (Object.prototype.hasOwnProperty.call(srs, key) || out[key]) return;
+      out[key] = { b, due: 0, n }; order.push(key);
+    };
+    checked.forEach(k => add(k, 2, 1));
+    known.forEach(k => add(k, KNOWN_BOX, 0));
+    order.forEach((k, i) => {
+      const d = new Date(now);
+      d.setHours(24, 0, 0, 0);                    // 내일 0시(현지)
+      d.setDate(d.getDate() + Math.floor(i / per));
+      out[k].due = d.getTime();
+    });
+    return out;
+  }
+
   const api = {
     INTERVALS, DUE_BLOCK, SESSION_SIZE, DEFAULT_CAP, CAP_MIN, CAP_MAX,
-    intervalOf, nextBox, answer, firstLook, newPerDay, newAllowedToday, composeSession, dayKey
+    intervalOf, nextBox, answer, firstLook, newPerDay, newAllowedToday, composeSession, dayKey, migrateToripa
   };
   if (typeof module === "object" && module.exports) module.exports = api;
   else root.SrsCore = api;

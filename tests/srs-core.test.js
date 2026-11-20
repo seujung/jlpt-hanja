@@ -51,3 +51,20 @@ test("dayKey uses local date", () => {
   assert.equal(S.dayKey(new Date(2026, 10, 20, 23, 59).getTime()), "2026-11-20");
   assert.equal(S.dayKey(new Date(2026, 10, 21, 0, 1).getTime()), "2026-11-21");
 });
+
+test("migrateToripa: checked box 2 first, known box 4, 30 per day from tomorrow", () => {
+  const now = new Date(2026, 10, 20, 15).getTime();
+  const tomorrow = new Date(2026, 10, 21).getTime();
+  const checked = Array.from({ length: 31 }, (_, i) => "c" + i);
+  const out = S.migrateToripa({ checked, known: ["k0", "c0"], srs: {}, now });
+  assert.deepEqual(out.c0, { b: 2, due: tomorrow, n: 1 });
+  assert.equal(out.c29.due, tomorrow);
+  assert.equal(out.c30.due, tomorrow + DAY);
+  assert.deepEqual(out.k0, { b: 4, due: tomorrow + DAY, n: 0 });
+  assert.equal(Object.keys(out).length, 32);
+});
+test("migrateToripa: never overwrites existing queue entries", () => {
+  const out = S.migrateToripa({ checked: ["国際"], known: ["h:0001"], srs: { "国際": { b: 5, due: 1, n: 0 } }, now: 0 });
+  assert.equal(out["国際"], undefined);
+  assert.equal(out["h:0001"].b, 4);
+});
