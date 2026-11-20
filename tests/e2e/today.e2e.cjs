@@ -5,7 +5,7 @@ const http = require("node:http");
 const fs = require("node:fs");
 const path = require("node:path");
 const os = require("node:os");
-const { webkit } = require("playwright");
+const { webkit, devices } = require("playwright");
 
 const ROOT = path.join(__dirname, "..", "..");
 const TYPES = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".json": "application/json", ".png": "image/png", ".webmanifest": "application/manifest+json" };
@@ -36,8 +36,8 @@ async function main() {
   const browser = await webkit.launch();
   const failures = [];
 
-  async function open(storage) {
-    const ctx = await browser.newContext({ serviceWorkers: "block" });
+  async function open(storage, ctxOpts) {
+    const ctx = await browser.newContext({ serviceWorkers: "block", ...(ctxOpts || {}) });
     await ctx.addInitScript(s => {
       if (sessionStorage.getItem("__seeded")) return;
       sessionStorage.setItem("__seeded", "1");
@@ -123,6 +123,22 @@ async function main() {
     assert(srs["h:0100"] && srs["h:0100"].b === 2, "checked item from old file migrated: " + JSON.stringify(srs["h:0100"]));
     assert(srs["h:0063"] && srs["h:0063"].b === 4, "tested item from old file → box 4");
     assert(srs["国際"].b === 3, "file srs merged");
+    assert(!errors.length, errors.join("; "));
+    await ctx.close();
+  });
+
+  await scenario("J", async () => {
+    // iPhone: 뜻·읽기 두 문항이 좌우로 나란히, 화면 안에 함께 보인다
+    const { ctx, page, errors } = await open({ hz_srs_migrated: 1, hz_srs: { "h:0001": { b: 3, due: 0, n: 0 } }, hz_new_today: { day: ymd(Date.now()), n: 999 } }, devices["iPhone 14"]);
+    await page.click('[data-view="today"]');
+    await page.waitForSelector(".card.q .qpart + .qpart");
+    const r = await page.evaluate(() => {
+      const [a, b] = [...document.querySelectorAll(".card.q .qpart")].map(x => x.getBoundingClientRect());
+      return { aTop: a.top, bTop: b.top, aRight: a.right, bLeft: b.left, bottom: Math.max(a.bottom, b.bottom), vh: innerHeight, sw: document.documentElement.scrollWidth, vw: innerWidth };
+    });
+    assert(Math.abs(r.aTop - r.bTop) < 2 && r.aRight <= r.bLeft + 1, "parts side by side: " + JSON.stringify(r));
+    assert(r.aTop >= 0 && r.bottom <= r.vh, "both parts inside viewport: " + JSON.stringify(r));
+    assert(r.sw <= r.vw, "no horizontal scroll");
     assert(!errors.length, errors.join("; "));
     await ctx.close();
   });

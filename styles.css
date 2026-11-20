@@ -335,3 +335,20 @@ select{font-family:inherit}
 .opt.idk{margin-top:6px;width:100%;background:transparent;border-style:dashed;color:var(--muted);font-size:12.5px}
 .opt.idk:hover{color:var(--ink2)}
 .qpart.answered .opt.idk{display:none}
+
+/* 뜻·읽기 두 문항을 좌우로 나란히 */
+.qparts.two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;align-items:start}
+.qparts.two .qpart+.qpart{margin-top:0;padding-top:0;border-top:0;padding-left:16px;border-left:1px solid var(--grid)}
+.qparts.two .opt{padding:10px 12px;font-size:15px;overflow-wrap:anywhere}
+.qparts.two .opt.jp{font-size:14px;line-height:1.45}
+.qparts.two .qsub{align-items:flex-start;line-height:1.4}
+@media (max-width:560px){
+  .qparts.two{gap:8px}
+  .qparts.two .qpart+.qpart{padding-left:8px}
+  .qparts.two .opts{gap:6px}
+  .qparts.two .opt{padding:8px 9px;font-size:13.5px;border-radius:10px}
+  .qparts.two .opt.jp{font-size:12.5px}
+  .qparts.two .qsub{font-size:11.5px;margin-bottom:8px;gap:6px}
+  .qparts.two .opt.idk{font-size:11.5px}
+  .card.q .prompt{margin:6px 0 2px}
+}

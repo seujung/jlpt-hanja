@@ -521,10 +521,13 @@
         reveal.appendChild(sp);
         reveal.hidden = false;
       }
-      next.hidden = false; next.focus();
+      next.hidden = false; next.focus({ preventScroll: true });
+      if (NARROW.matches) next.scrollIntoView({ block: "nearest", behavior: "smooth" });
       if (o.onAnswer) o.onAnswer(allOk, picks);
     }
     const blocks = [];
+    // 두 문항(뜻·읽기)은 좌우로 나란히 놓아 한 화면에 함께 보이게 한다
+    const partsWrap = el("div", "qparts" + (parts.length > 1 ? " two" : ""));
     // "모르겠어요": 이 문항과 남은 문항을 모두 오답으로 끝내고 정답을 보여 준다(함정 통계에는 세지 않음)
     function giveUp() {
       allOk = false;
@@ -563,13 +566,17 @@
         block.appendChild(idk);
       }
       blocks.push({ block, opts, p });
-      card.appendChild(block);
+      partsWrap.appendChild(block);
     });
+    card.appendChild(partsWrap);
     const foot = el("div", "qfoot"); foot.appendChild(next);
     card.append(reveal, foot);
     wrap.appendChild(card);
     host.appendChild(wrap);
+    // 좁은 화면: 위쪽 메뉴·설정을 지나 문제 카드가 화면 맨 위에 오게 한다
+    if (NARROW.matches) wrap.scrollIntoView({ block: "start" });
   }
+  const NARROW = window.matchMedia("(max-width: 900px)");
 
   /* ---------- 셸: 제목 · 사이드바 · 라우터 ---------- */
   const MANDANG = [
@@ -640,7 +647,9 @@
       b.querySelector(".dm").innerHTML = `<i class="dot ${s.tp}" title="토리파 ${s.steps}/7단계${s.frac > s.steps / 7 ? " (진행 중)" : ""}"></i>` + (s.quiz != null ? `<span class="num">${s.quiz}%</span>` : "");
     });
     const on = dayNav.querySelector("button.on");
-    if (on && on.scrollIntoViewIfNeeded) on.scrollIntoViewIfNeeded(false);
+    // 좁은 화면의 가로 메뉴는 메뉴 줄만 가로로 옮긴다(페이지 세로 위치는 건드리지 않음)
+    if (on && NARROW.matches) dayNav.scrollLeft = Math.max(0, on.offsetLeft - dayNav.offsetLeft - 8);
+    else if (on && on.scrollIntoViewIfNeeded) on.scrollIntoViewIfNeeded(false);
   }
   let curView = "home", stopTimer = null;
   function go(view, arg) {
