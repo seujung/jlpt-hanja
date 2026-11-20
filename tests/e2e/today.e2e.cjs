@@ -143,6 +143,33 @@ async function main() {
     await ctx.close();
   });
 
+  await scenario("K", async () => {
+    // iPhone: 설정은 접혀 있고, 문제 카드가 스크롤 없이 화면 위쪽에 보인다
+    const { ctx, page, errors, ls } = await open({ hz_srs_migrated: 1, hz_srs: { "h:0001": { b: 3, due: 0, n: 0 } }, hz_new_today: { day: ymd(Date.now()), n: 999 } }, devices["iPhone 14"]);
+    assert(await page.isVisible("#setToggle"), "settings toggle visible");
+    assert(!(await page.isVisible("#capInput")) && !(await page.isVisible("#expBtn")), "settings collapsed by default");
+    assert(await page.evaluate(() => document.getElementById("setToggle").classList.contains("warn")), "toggle warns when never saved");
+    await page.click("#setToggle");
+    assert(await page.isVisible("#capInput") && await page.isVisible("#expBtn"), "settings open after tap");
+    await page.click("#setToggle");
+    assert(!(await page.isVisible("#capInput")), "settings close again");
+    await page.click('[data-view="today"]');
+    await page.waitForSelector(".card.q");
+    const top = await page.evaluate(() => document.querySelector(".qwrap").getBoundingClientRect().top + scrollY);
+    assert(top < 320, "question starts near page top without scrolling: " + top);
+    assert(!errors.length, errors.join("; "));
+    await ctx.close();
+  });
+
+  await scenario("L", async () => {
+    // 넓은 화면(iPad 가로·데스크톱)은 설정을 접지 않는다
+    const { ctx, page, errors } = await open({ hz_srs_migrated: 1 }, { viewport: { width: 1180, height: 820 } });
+    assert(!(await page.isVisible("#setToggle")), "no toggle on wide screen");
+    assert(await page.isVisible("#capInput"), "settings visible on wide screen");
+    assert(!errors.length, errors.join("; "));
+    await ctx.close();
+  });
+
   const now = Date.now();
   const idkNext = async page => { await page.click(".qpart:not(.answered) .opt.idk"); await page.click(".qfoot .btn.pri"); };
 

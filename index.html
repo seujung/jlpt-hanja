@@ -25,7 +25,8 @@
       <div class="brand-txt"><b>JLPT 상용한자 2136</b><span>HANJA TRAINER</span></div>
     </div>
     <nav class="nav days" id="dayNav" aria-label="일차 목록"></nav>
-    <div class="side-tools">
+    <div class="side-tools collapsed" id="sideTools">
+      <button class="btn ghost sm set-toggle" id="setToggle" type="button" aria-expanded="false" aria-controls="sideTools">⚙ 설정</button>
       <span class="nav-label">설정</span>
       <label class="field">음성 <select id="voiceSelect"></select></label>
       <label class="field">하루 새 항목 상한 <input type="number" id="capInput" min="10" max="100" step="5" inputmode="numeric"></label>

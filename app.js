@@ -47,6 +47,8 @@
     const st = window.ProgressFile.backupStatus(LS.get("hz_last_backup", null), Date.now());
     box.textContent = st.text;
     box.classList.toggle("warn", st.warn);
+    const tg = document.getElementById("setToggle");
+    if (tg) tg.classList.toggle("warn", st.warn);   // 접힌 설정 버튼에도 "저장 필요" 점 표시
   }
   function importProgress(file) {
     const reader = new FileReader();
@@ -1659,6 +1661,13 @@
   document.getElementById("resetBtn").onclick = resetProgress;
   impFile.onchange = () => { if (impFile.files[0]) importProgress(impFile.files[0]); impFile.value = ""; };
   renderBackupStatus();
+  // 좁은 화면: 설정 영역은 접어 두고 "⚙ 설정" 버튼으로 펼친다(넓은 화면에서는 버튼이 숨겨지고 항상 펼쳐 보임)
+  const sideTools = document.getElementById("sideTools"), setToggle = document.getElementById("setToggle");
+  setToggle.onclick = () => {
+    const open = sideTools.classList.toggle("collapsed") === false;
+    setToggle.setAttribute("aria-expanded", String(open));
+    setToggle.textContent = open ? "⚙ 설정 닫기" : "⚙ 설정";
+  };
   const capInput = document.getElementById("capInput");
   capInput.value = newCap();
   capInput.onchange = () => {

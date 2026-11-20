@@ -352,3 +352,11 @@ select{font-family:inherit}
   .qparts.two .opt.idk{font-size:11.5px}
   .card.q .prompt{margin:6px 0 2px}
 }
+
+/* 설정 접기: 좁은 화면에서만 */
+.set-toggle{display:none}
+@media (max-width:900px){
+  .set-toggle{display:inline-flex;position:relative}
+  .set-toggle.warn::after{content:"";position:absolute;top:4px;right:4px;width:7px;height:7px;border-radius:50%;background:var(--warn)}
+  .side-tools.collapsed > :not(.set-toggle){display:none}
+}
